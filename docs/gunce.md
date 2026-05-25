@@ -1,7 +1,7 @@
-## [Mayıs 2026] — STAGE-4 Tamamlandı
+## [Mayıs 2026] — STAGE-5 Tamamlandı
 
-Aktif adım: STAGE-5 bekleniyor
-Sıradaki konuşmada: "STAGE-5'e başlıyoruz" ile başlat
+Aktif adım: STAGE-6 bekleniyor
+Sıradaki konuşmada: "STAGE-6'ya başlıyoruz" ile başlat
 Aktif model    : Sonnet 4.6 / Extended Thinking: kapalı
 Son güncelleme : Mayıs 2026
 Tıkanıklık     : yok
@@ -28,6 +28,14 @@ Tamamlanan:
   * Fiziksel öznitelikler imputasyondan SONRA hesaplanıyor (NaN yok)
   * TimeSeriesSplit(gap=24) Walk-Forward iskeleti
   * 16/16 birim test geçti (tests/test_make_dataset.py)
+- S5 Taban öğreniciler ✓ — models/base_learners.py
+  * LightGBM × 3, CatBoost × 3, XGBoost × 3 (quantile q=0.1/0.5/0.9)
+  * XGBoost: custom pinball objective (grad/hess elle yazılmış)
+  * OOF tahminleri → TimeSeriesSplit(n_splits=5, gap=24)
+  * build_x_meta(): 9 OOF sütun → X_meta (NaN satırlar atılmış)
+  * train_all_base_learners(): 9 model eğit + joblib ile kaydet
+  * 35/35 birim test geçti (tests/test_base_learners.py)
+  * Düzeltilen hata: build_x_meta içinde algo yerine X_train geçiliyordu
 
 Altyapı:
 - Repo public ✓ (GitHub raw URL aktif)
@@ -35,10 +43,10 @@ Altyapı:
 - Projects custom instructions güncellendi ✓ (her iki raw URL + skill/model/token kuralları)
 
 Açık görevler:
-- STAGE-5: 9 taban öğrenici (LightGBM × 3 + CatBoost × 3 + XGBoost × 3 quantile)
-  * models/base_learners.py → train_base_learner(algo, q, X, y) API
-  * Out-of-fold (OOF) tahminleri → X_meta matrisi (n_train × 9)
-  * Pinball loss validation skorları raporlanacak
+- STAGE-6: Meta-öğrenici + missingness flags
+  * models/meta_learner.py → Ridge × 3 (q=0.1/0.5/0.9)
+  * Girdi: X_meta (9 OOF) + 4 missingness flag = 13 özellik
+  * flags'lı vs flags'sız karşılaştırma (Diebold-Mariano testi için zemin)
 
 Sistem:
 - claude.ai Projects → düşünme, yazım, karar
