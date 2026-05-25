@@ -6,6 +6,8 @@ Aktif model    : Sonnet 4.6 / Extended Thinking: kapalı
 Son güncelleme : Mayıs 2026
 Tıkanıklık     : yok
 
+Kaynak (Projects için): https://raw.githubusercontent.com/arslanburak58/tez-pv/main/docs/gunce.md
+
 Tamamlanan:
 - S0 Setup ✓
 - S1 Literatür ✓ (harita oturumu + literatur_ozeti.md düzeltmeleri)

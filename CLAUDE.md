@@ -190,12 +190,16 @@ claude.ai Projects (bu ekran) şunları yapar:
 
 ## GÜNCE SENKRONIZASYON
 
-`gunce.md` Google Drive'da yaşıyor. File ID: `1V-ll6bSt4CQAEYbrJdQH_vbb60JO0xhp`
+`gunce.md` kaynağı GitHub'da yaşıyor. Repo public olduğu için raw URL üzerinden okunabilir.
+
+Raw URL: `https://raw.githubusercontent.com/arslanburak58/tez-pv/main/docs/gunce.md`
 
 Günceyi güncellemek için:
 1. `docs/gunce.md` dosyasını düzenle
-2. İçeriği Drive'daki dosyaya da yaz (Google Drive MCP ile)
-3. `git commit -m "DOC: gunce.md güncellendi"`
+2. `git commit -m "DOC: gunce.md güncellendi"`
+3. `git push`
+
+claude.ai Projects'te: konuşma başında yukarıdaki raw URL'yi oku (web browsing ile).
 
 ---
 
