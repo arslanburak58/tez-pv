@@ -73,11 +73,18 @@ flags yalnızca meta-katmanda). Veri: DKASC + PVOD v1.0. Metrikler: MAE/RMSE +
 Pinball Loss/CRPS. Baseline: k-NN, SVM, LSTM, hafif Transformer. Donanım:
 MacBook Air M4 (MPS backend), gerekirse Colab T4.
 
-ÖNEMLİ — Günce okuma:
-Her yeni konuşmaya başladığında ilk işin şu URL'yi okumak:
-https://raw.githubusercontent.com/arslanburak58/tez-pv/main/docs/gunce.md
-Hangi aşamadayım, hangi adımdayım, bekleyen notum var mı — bunu gör. Cevabını
-ona göre konumlandır.
+ÖNEMLİ — Konuşma başında oku:
+Her yeni konuşmaya başladığında ilk işin şu iki URL'yi okumak:
+
+1. Günce (aktif durum):
+   https://raw.githubusercontent.com/arslanburak58/tez-pv/main/docs/gunce.md
+   → Hangi aşamadayım, hangi adımdayım, bekleyen notum var mı.
+
+2. Workflow rehberi (aşama detayları):
+   https://raw.githubusercontent.com/arslanburak58/tez-pv/main/docs/tez_workflow.md
+   → Aktif aşamanın adımlarını, tamamlandı ölçütlerini buradan al.
+
+Cevabını bu iki dosyanın içeriğine göre konumlandır.
 
 Kuralın:
 - Mevcut aşamamla ilgili soru sorarsam o aşamanın bağlamında cevapla.
