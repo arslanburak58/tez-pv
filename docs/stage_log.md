@@ -150,3 +150,39 @@ Mimari:
 - `build_x_meta`: `index=idx` eklendi → orijinal index meta-katman hizalamasında kullanılabilir
 
 Test sonucu: **31/31 PASSED** (meta_learner) + **35/35 PASSED** (base_learners) = **66/66 toplam**
+
+---
+
+## STAGE-8 — Robustness Testleri
+
+**Tarih:** 2026-05-26  
+**Commit:** (bu commit)  
+**Dosyalar:** `evaluation/robustness.py`, `tests/test_robustness.py`
+
+3 eksen × 3 seviye = 9 senaryo:
+
+Rastgele kayıp:
+- `random_10pct` — %10 rastgele NaN maskeleme (tüm sensörler)
+- `random_25pct` — %25
+- `random_50pct` — %50
+
+Burst kayıp:
+- `burst_1h`  — 1 saat ardışık kesinti
+- `burst_6h`  — 6 saat
+- `burst_24h` — 24 saat
+
+Sensör-özgü:
+- `sensor_G`    — G sütunu tamamı sıfır
+- `sensor_Tamb` — T_amb sütunu tamamı sıfır
+- `sensor_RH`   — RH sütunu tamamı sıfır
+
+Mimari:
+- `_corrupt_columns`: sensör→0, flag→1, türev özellik sıfırlama (G→k_t, T_amb→T_cell)
+- `apply_scenario`: random/burst/sensor eksenlerini uygular
+- `build_predict_fn`: flags/noflags için closure
+- `evaluate_predictions`: pinball×3, crps, mae, rmse, coverage
+- `run_all_scenarios`: baseline + 9 senaryo → {"flags", "noflags", "dm"} DataFrame
+- `diebold_mariano_test`: HLN düzeltmeli, t(n-1), iki yönlü; sıfır varyans guard
+- `plot_heatmap`: 9 senaryo × 2 model PNG ısı haritası
+
+Test sonucu: **57/57 PASSED**

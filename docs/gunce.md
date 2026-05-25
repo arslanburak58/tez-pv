@@ -1,7 +1,7 @@
-## [Mayıs 2026] — STAGE-7 Tamamlandı
+## [Mayıs 2026] — STAGE-8 Tamamlandı
 
-Aktif adım: STAGE-8 bekleniyor
-Sıradaki konuşmada: "STAGE-8'e başlıyoruz" ile başlat
+Aktif adım: STAGE-9 bekleniyor
+Sıradaki konuşmada: "STAGE-9'a başlıyoruz" ile başlat
 Aktif model    : Sonnet 4.6 / Extended Thinking: kapalı
 Son güncelleme : Mayıs 2026
 Tıkanıklık     : yok
@@ -36,6 +36,13 @@ Tamamlanan:
   * train_all_base_learners(): 9 model eğit + joblib ile kaydet
   * 35/35 birim test geçti (tests/test_base_learners.py)
 - S6 Meta-öğrenici + missingness flags ✓ — models/meta_learner.py
+  * enrich_x_meta(): 9 OOF + 4 flag = 13 özellik, index hizalamalı
+  * Ridge × 3 (q=0.1/0.5/0.9), alpha=1.0 (STAGE-7'de Optuna ile aranacak)
+  * predict_intervals(): DataFrame alır, tip kaybı yok
+  * coverage_score(): %10–%90 bant kapsama oranı
+  * compare_baseline(): stacked vs tek LightGBM-quantile pinball karşılaştırması
+  * LightGBM predict çağrıları DataFrame ile — sütun adları korunuyor
+  * 31/31 birim test geçti (tests/test_meta_learner.py)
 - S7 Optuna optimizasyon ✓ — optimization/optuna_search.py
   * TPESampler(seed=42) + MedianPruner(n_startup=5, warmup=1)
   * Arama uzayı: 3 algo × 7-8 param + Ridge alpha
@@ -45,13 +52,20 @@ Tamamlanan:
   * top_trials_summary() → en iyi N trial DataFrame
   * plot_study() → parallel coordinate + param importance (HTML)
   * 26/26 birim test geçti (tests/test_optuna_search.py)
-  * enrich_x_meta(): 9 OOF + 4 flag = 13 özellik, index hizalamalı
-  * Ridge × 3 (q=0.1/0.5/0.9), alpha=1.0 (STAGE-7'de Optuna ile aranacak)
-  * predict_intervals(): DataFrame alır, tip kaybı yok
-  * coverage_score(): %10–%90 bant kapsama oranı
-  * compare_baseline(): stacked vs tek LightGBM-quantile pinball karşılaştırması
-  * LightGBM predict çağrıları DataFrame ile — sütun adları korunuyor
-  * 31/31 birim test geçti (tests/test_meta_learner.py)
+  * Gerçek çalışma: 50 trial → en iyi #42 | val pinball: 2.9057 (%69.1 iyileşme)
+  * Sonuç: docs/best_params.json
+- S8 Robustness testleri ✓ — evaluation/robustness.py
+  * RobustnessScenario dataclass + ALL_SCENARIOS (9 senaryo)
+  * Rastgele kayıp: %10/%25/%50 → maskeleme + flag güncelleme
+  * Burst kayıp: 1h/6h/24h → ardışık blok bozulma
+  * Sensör-özgü: G/T_amb/RH → tam sütun sıfırlama
+  * Türev özellik yönetimi: G bozulunca k_t=0, T_amb bozulunca T_cell=0
+  * build_predict_fn(): flags/noflags iki model için closure
+  * evaluate_predictions(): pinball_q01/q05/q09, crps, mae, rmse, coverage
+  * run_all_scenarios(): {"flags", "noflags", "dm"} DataFrame'leri
+  * diebold_mariano_test(): HLN düzeltmeli, t(n-1), iki yönlü
+  * plot_heatmap(): 9 senaryo × 2 model ısı haritası (PNG)
+  * 57/57 birim test geçti (tests/test_robustness.py)
 
 Altyapı:
 - Repo public ✓ (GitHub raw URL aktif)
@@ -59,11 +73,11 @@ Altyapı:
 - Projects custom instructions güncellendi ✓ (her iki raw URL + skill/model/token kuralları)
 
 Açık görevler:
-- STAGE-8: Robustness testleri (3 eksen × 3 seviye = 9 senaryo)
-  * Rastgele kayıp: %10 / %25 / %50
-  * Burst kayıp: 1 / 6 / 24 saat
-  * Sensör-özgü: G / T_amb / RH
-  * Her senaryoda Pinball + CRPS + coverage; Diebold-Mariano testi
+- STAGE-9: Baseline modeller
+  * k-NN regressor
+  * SVM (RBF kernel)
+  * LSTM (PyTorch MPS, 2 katman)
+  * Hafif TFT
 
 Sistem:
 - claude.ai Projects → düşünme, yazım, karar
