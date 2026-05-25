@@ -1,0 +1,37 @@
+# Veri setleri — asla commit etme (GB boyutunda)
+data/raw/
+data/processed/
+*.csv
+*.parquet
+*.h5
+*.nc
+*.zip
+*.gz
+
+# Model checkpoint'leri (joblib)
+models/checkpoints/
+*.joblib
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+.ipynb_checkpoints/
+
+# Virtual environment
+tez-env/
+venv/
+.env
+
+# Optuna
+*.db
+optuna_studies/
+
+# macOS
+.DS_Store
+.AppleDouble
+
+# Geçici
+*.tmp
+*.log
+nohup.out
