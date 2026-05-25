@@ -186,3 +186,27 @@ Mimari:
 - `plot_heatmap`: 9 senaryo × 2 model PNG ısı haritası
 
 Test sonucu: **57/57 PASSED**
+
+---
+
+## STAGE-9 — Baseline Modeller
+
+**Tarih:** 2026-05-26  
+**Commit:** (bu commit)  
+**Dosyalar:** `models/baselines.py`, `tests/test_baselines.py`
+
+4 baseline model, q={0.1, 0.5, 0.9} quantile çıktı:
+
+- **KNNQuantile**: k komşunun y değerlerinden quantile (proper quantile k-NN, `kneighbors`)
+- **SVMQuantile**: Nystroem(RBF, 500 bileşen) + LinearSVR + split-conformal bant (son %20 kalibrasyon)
+- **LSTMQuantile**: 2 katmanlı LSTM, hidden=64, MPS/CPU, pinball loss, erken durdurma (patience=5)
+- **LightTFTQuantile**: doğrusal gömme → LSTM → multi-head attention → GRN → 3 çıktı; `pytorch_forecasting` gerektirmez
+
+Yardımcı:
+- `make_sequences(X, y, seq_len)` → dizi pipeline
+- `evaluate_quantiles(y, preds)` → 7 metrik (pinball×3, crps, mae, rmse, coverage)
+- `train_baseline / predict_baseline / evaluate_baseline` — unified API
+- `BASELINE_REGISTRY` — {"knn", "svm", "lstm", "tft"}
+- `train_all_baselines` — 4 modeli sırayla eğit + değerlendir
+
+Test sonucu: **43/43 PASSED**

@@ -1,7 +1,7 @@
-## [Mayıs 2026] — STAGE-8 Tamamlandı
+## [Mayıs 2026] — STAGE-9 Tamamlandı
 
-Aktif adım: STAGE-9 bekleniyor
-Sıradaki konuşmada: "STAGE-9'a başlıyoruz" ile başlat
+Aktif adım: STAGE-10 bekleniyor
+Sıradaki konuşmada: "STAGE-10'a başlıyoruz" ile başlat
 Aktif model    : Sonnet 4.6 / Extended Thinking: kapalı
 Son güncelleme : Mayıs 2026
 Tıkanıklık     : yok
@@ -72,12 +72,21 @@ Altyapı:
 - tez_workflow.md markdown'a çevrildi ✓ (AEMO/NREL B planı + git adımları eklendi)
 - Projects custom instructions güncellendi ✓ (her iki raw URL + skill/model/token kuralları)
 
+- S9 Baseline modeller ✓ — models/baselines.py
+  * KNNQuantile: k komşu quantile (proper k-NN, kneighbors)
+  * SVMQuantile: Nystroem + LinearSVR + split-conformal bantlar
+  * LSTMQuantile: 2 katmanlı LSTM, pinball loss, erken durdurma, MPS
+  * LightTFTQuantile: LSTM + multi-head attention + GRN, pytorch_forecasting YOK
+  * make_sequences, evaluate_quantiles, train_all_baselines unified API
+  * 43/43 birim test geçti (tests/test_baselines.py)
+
 Açık görevler:
-- STAGE-9: Baseline modeller
-  * k-NN regressor
-  * SVM (RBF kernel)
-  * LSTM (PyTorch MPS, 2 katman)
-  * Hafif TFT
+- STAGE-10: Karşılaştırmalı analiz
+  * Master tablo: 6 model × (MAE, RMSE, Pinball, CRPS, Coverage, süre)
+  * Heatmap: sensör × hata değişimi
+  * Olasılıksal bant görselleştirme
+  * Diebold-Mariano pairwise testleri (Holm-Bonferroni)
+  * figures/ altına PNG + PDF
 
 Sistem:
 - claude.ai Projects → düşünme, yazım, karar
