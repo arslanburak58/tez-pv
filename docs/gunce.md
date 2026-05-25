@@ -14,12 +14,11 @@ Tamamlanan gruplar (literatür haritası oturumu bitti):
 - Grup E (olasılıksal metrikler) → sentez yazıldı.
 
 Açık görevler (onay sonrasına bırakıldı):
-1. literatur_ozeti.md güncellemeleri:
-   - Chen ve Xu (2022) Grup A'dan Grup D'ye taşı.
-   - Arslan ve Gemini AI (2026) → tamamen sil.
-   - Gneiting kaydını JASA makalesine güncelle
-     (Gneiting ve Raftery, 2007; doi: 10.1198/016214506000001437).
-   - Gneiting JASA makalesini NotebookLM ana deftere yükle.
+1. literatur_ozeti.md güncellemeleri: ✓ TAMAMLANDI (Mayıs 2026)
+   - Chen ve Xu (2022) → Grup D'de doğrulandı (madde 19).
+   - Arslan ve Gemini AI (2026) → silindi.
+   - Gneiting kaydı → JASA atıfı ve doi doğrulandı (madde 26).
+   - Gneiting JASA makalesini NotebookLM ana deftere yükle. (bekliyor)
 2. STAGE-1 tamamlandı ölçütlerini kontrol et.
 3. STAGE-2'ye geç (veri temini).
 
