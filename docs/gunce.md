@@ -1,7 +1,7 @@
-## [Mayıs 2026] — STAGE-6 Tamamlandı
+## [Mayıs 2026] — STAGE-7 Tamamlandı
 
-Aktif adım: STAGE-7 bekleniyor
-Sıradaki konuşmada: "STAGE-7'ye başlıyoruz" ile başlat
+Aktif adım: STAGE-8 bekleniyor
+Sıradaki konuşmada: "STAGE-8'e başlıyoruz" ile başlat
 Aktif model    : Sonnet 4.6 / Extended Thinking: kapalı
 Son güncelleme : Mayıs 2026
 Tıkanıklık     : yok
@@ -36,6 +36,15 @@ Tamamlanan:
   * train_all_base_learners(): 9 model eğit + joblib ile kaydet
   * 35/35 birim test geçti (tests/test_base_learners.py)
 - S6 Meta-öğrenici + missingness flags ✓ — models/meta_learner.py
+- S7 Optuna optimizasyon ✓ — optimization/optuna_search.py
+  * TPESampler(seed=42) + MedianPruner(n_startup=5, warmup=1)
+  * Arama uzayı: 3 algo × 7-8 param + Ridge alpha
+  * Objective: mean val pinball (9 model) → minimize
+  * MedianPruner için per-algo kümülatif kayıp bildirilir (step=0/1/2)
+  * save_best_params() → best_params.json (algo başlıkları + _meta)
+  * top_trials_summary() → en iyi N trial DataFrame
+  * plot_study() → parallel coordinate + param importance (HTML)
+  * 26/26 birim test geçti (tests/test_optuna_search.py)
   * enrich_x_meta(): 9 OOF + 4 flag = 13 özellik, index hizalamalı
   * Ridge × 3 (q=0.1/0.5/0.9), alpha=1.0 (STAGE-7'de Optuna ile aranacak)
   * predict_intervals(): DataFrame alır, tip kaybı yok
@@ -50,10 +59,11 @@ Altyapı:
 - Projects custom instructions güncellendi ✓ (her iki raw URL + skill/model/token kuralları)
 
 Açık görevler:
-- STAGE-7: Optuna hiperparametre optimizasyonu
-  * LightGBM / CatBoost / XGBoost hiperparametreleri + Ridge alpha
-  * Objective: (L_0.1 + L_0.5 + L_0.9) / 3 validation pinball
-  * TPE sampler + MedianPruner
+- STAGE-8: Robustness testleri (3 eksen × 3 seviye = 9 senaryo)
+  * Rastgele kayıp: %10 / %25 / %50
+  * Burst kayıp: 1 / 6 / 24 saat
+  * Sensör-özgü: G / T_amb / RH
+  * Her senaryoda Pinball + CRPS + coverage; Diebold-Mariano testi
 
 Sistem:
 - claude.ai Projects → düşünme, yazım, karar

@@ -102,6 +102,28 @@ Test sonucu: **35/35 PASSED**
 
 ---
 
+## STAGE-7 — Optuna Hiperparametre Optimizasyonu
+
+**Tarih:** 2026-05-26  
+**Commit:** `(bu oturum)`  
+**Dosyalar:** `optimization/optuna_search.py`, `optimization/__init__.py`, `tests/test_optuna_search.py`
+
+Mimari:
+- `suggest_base_params(trial, algo)`: SEARCH_SPACE'den prefix'li param adları önerir, prefix'siz dict döndürür
+- `objective(trial, ...)`: 9 model val pinball ortalaması; her algo'dan sonra `trial.report()` (MedianPruner için)
+- `run_study(...)`: TPESampler(seed=42) + MedianPruner(n_startup=5, warmup=1), in-memory veya SQLite
+- `save_best_params(study, path)`: algo başlıkları + ridge_alpha + `_meta` bloğu → JSON
+- `load_best_params(path)`: JSON → dict
+- `top_trials_summary(study, n)`: en iyi N trial → pd.DataFrame (sıralı)
+- `plot_study(study, save_dir)`: parallel coordinate + param importance → HTML
+
+Arama uzayı: LightGBM 8 param, CatBoost 5 param, XGBoost 7 param, Ridge alpha — toplam 21 boyut  
+Ridge alpha objective'e dahil edilmez (OOF olmadan meta-fit anlamsız); trial params'a kaydedilir.
+
+Test sonucu: **26/26 PASSED**
+
+---
+
 ## STAGE-6 — Meta-öğrenici + Missingness Flags
 
 **Tarih:** 2026-05-26  
