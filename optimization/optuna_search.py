@@ -159,6 +159,7 @@ def run_study(
     study_name: str = "pv_optuna",
     storage: str | None = None,
     show_progress_bar: bool = True,
+    catch: tuple[type[Exception], ...] = (),
 ) -> optuna.Study:
     """
     TPESampler + MedianPruner ile Optuna çalışması başlat.
@@ -188,6 +189,7 @@ def run_study(
         lambda trial: objective(trial, X_train, y_train, X_val, y_val, flags_val),
         n_trials=n_trials,
         show_progress_bar=show_progress_bar,
+        catch=catch,
     )
 
     log.info(

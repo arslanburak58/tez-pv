@@ -181,10 +181,18 @@ def make_dataset(
     test_raw = _interpolate_short_gaps(test_raw, sensor_cols_avail, freq_minutes, interp_gap_hours)
 
     # ── 4. KNNImputer — SADECE train'de fit, sensör kolonlarına ───────────────
+    # Tamamen NaN olan kolonlar (ör. wind_speed 2017+ yıllarında eksik) imputer'a
+    # verilmez; NaN olarak kalır — missingness flag zaten 1, tree modelleri NaN'ı kaldırır.
+    imputable = [c for c in sensor_cols_avail if not train_raw[c].isna().all()]
+    skipped   = [c for c in sensor_cols_avail if c not in imputable]
+    if skipped:
+        log.warning("Tamamı NaN, impute edilmedi: %s", skipped)
+
     imputer = KNNImputer(n_neighbors=n_neighbors)
-    train_raw[sensor_cols_avail] = imputer.fit_transform(train_raw[sensor_cols_avail])
-    val_raw[sensor_cols_avail] = imputer.transform(val_raw[sensor_cols_avail])
-    test_raw[sensor_cols_avail] = imputer.transform(test_raw[sensor_cols_avail])
+    if imputable:
+        train_raw[imputable] = imputer.fit_transform(train_raw[imputable])
+        val_raw[imputable]   = imputer.transform(val_raw[imputable])
+        test_raw[imputable]  = imputer.transform(test_raw[imputable])
 
     if imputer_path:
         joblib.dump(imputer, imputer_path)
