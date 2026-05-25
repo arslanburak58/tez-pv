@@ -38,6 +38,27 @@ Test sonucu: **16/16 PASSED**
 
 ---
 
+## STAGE-6 — Meta-öğrenici + Missingness Flags
+
+**Tarih:** 2026-05-26  
+**Commit:** `(bu oturum)`  
+**Dosyalar:** `models/meta_learner.py`, `tests/test_meta_learner.py`, `models/base_learners.py` (güncellendi)
+
+Mimari:
+- `enrich_x_meta(X_meta, flags)`: 9 OOF + 4 missingness flag = 13 özellik; `flags.reindex(X_meta.index)` ile güvenli hizalama
+- `Ridge × 3`: q=0.1/0.5/0.9 ayrı Ridge; alpha=1.0 (STAGE-7'de Optuna)
+- `predict_intervals()`: DataFrame alır, tip kaybı yok
+- `coverage_score()`: %10–%90 nominal bant; hedef ≈ 0.80
+- `compare_baseline()`: stacked pinball vs tek lgbm OOF pinball, % iyileşme
+
+`base_learners.py` güncellemeleri:
+- `make_oof_predictions`: `np.asarray` kaldırıldı → DataFrame korunur, LightGBM sütun adlarını takip eder, `X.iloc[tr_idx]` ile indeksleme
+- `build_x_meta`: `index=idx` eklendi → orijinal index meta-katman hizalamasında kullanılabilir
+
+Test sonucu: **31/31 PASSED** (meta_learner) + **35/35 PASSED** (base_learners) = **66/66 toplam**
+
+---
+
 ## STAGE-5 — Taban Öğreniciler (9 Model)
 
 **Tarih:** 2026-05-26  

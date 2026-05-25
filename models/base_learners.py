@@ -189,7 +189,9 @@ def make_oof_predictions(
     Returns:
         np.ndarray (n_train,) — OOF tahminleri, başta NaN olabilir
     """
-    X = np.asarray(X_train)
+    # DataFrame olarak koru — LightGBM sütun adlarını fit'ten hatırlar,
+    # numpy ile predict edilince uyarı verir.
+    X = X_train if isinstance(X_train, pd.DataFrame) else pd.DataFrame(np.asarray(X_train))
     y = np.asarray(y_train)
     n = len(X)
 
@@ -197,8 +199,8 @@ def make_oof_predictions(
     tscv = TimeSeriesSplit(n_splits=n_splits, gap=gap)
 
     for fold, (tr_idx, vl_idx) in enumerate(tscv.split(X)):
-        model = train_base_learner(algo, q, X[tr_idx], y[tr_idx], params=params)
-        oof[vl_idx] = model.predict(X[vl_idx])
+        model = train_base_learner(algo, q, X.iloc[tr_idx], y[tr_idx], params=params)
+        oof[vl_idx] = model.predict(X.iloc[vl_idx])
         score = pinball_loss(y[vl_idx], oof[vl_idx], q)
         log.info("OOF | %s q=%.1f | fold %d | pinball=%.4f", algo, q, fold, score)
 
@@ -221,6 +223,8 @@ def build_x_meta(
         oof_scores: dict — her (algo, q) için ortalama pinball skoru
     """
     y_arr = np.asarray(y_train)
+    # Orijinal index korunursa meta-katman flag'leri hizalayabilir
+    idx = X_train.index if isinstance(X_train, pd.DataFrame) else pd.RangeIndex(len(X_train))
     oof_dict: dict[str, np.ndarray] = {}
     oof_scores: dict[str, float] = {}
 
@@ -237,7 +241,7 @@ def build_x_meta(
             if valid.any():
                 oof_scores[col] = pinball_loss(y_arr[valid], oof[valid], q)
 
-    X_meta = pd.DataFrame(oof_dict, columns=META_COLS)
+    X_meta = pd.DataFrame(oof_dict, columns=META_COLS, index=idx)
 
     # NaN içeren satırları at (TimeSeriesSplit'in ilk eğitim bloğu)
     valid_rows = X_meta.notna().all(axis=1)

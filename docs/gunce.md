@@ -1,7 +1,7 @@
-## [Mayıs 2026] — STAGE-5 Tamamlandı
+## [Mayıs 2026] — STAGE-6 Tamamlandı
 
-Aktif adım: STAGE-6 bekleniyor
-Sıradaki konuşmada: "STAGE-6'ya başlıyoruz" ile başlat
+Aktif adım: STAGE-7 bekleniyor
+Sıradaki konuşmada: "STAGE-7'ye başlıyoruz" ile başlat
 Aktif model    : Sonnet 4.6 / Extended Thinking: kapalı
 Son güncelleme : Mayıs 2026
 Tıkanıklık     : yok
@@ -32,10 +32,17 @@ Tamamlanan:
   * LightGBM × 3, CatBoost × 3, XGBoost × 3 (quantile q=0.1/0.5/0.9)
   * XGBoost: custom pinball objective (grad/hess elle yazılmış)
   * OOF tahminleri → TimeSeriesSplit(n_splits=5, gap=24)
-  * build_x_meta(): 9 OOF sütun → X_meta (NaN satırlar atılmış)
+  * build_x_meta(): 9 OOF sütun → X_meta (NaN satırlar atılmış, orijinal index korunuyor)
   * train_all_base_learners(): 9 model eğit + joblib ile kaydet
   * 35/35 birim test geçti (tests/test_base_learners.py)
-  * Düzeltilen hata: build_x_meta içinde algo yerine X_train geçiliyordu
+- S6 Meta-öğrenici + missingness flags ✓ — models/meta_learner.py
+  * enrich_x_meta(): 9 OOF + 4 flag = 13 özellik, index hizalamalı
+  * Ridge × 3 (q=0.1/0.5/0.9), alpha=1.0 (STAGE-7'de Optuna ile aranacak)
+  * predict_intervals(): DataFrame alır, tip kaybı yok
+  * coverage_score(): %10–%90 bant kapsama oranı
+  * compare_baseline(): stacked vs tek LightGBM-quantile pinball karşılaştırması
+  * LightGBM predict çağrıları DataFrame ile — sütun adları korunuyor
+  * 31/31 birim test geçti (tests/test_meta_learner.py)
 
 Altyapı:
 - Repo public ✓ (GitHub raw URL aktif)
@@ -43,10 +50,10 @@ Altyapı:
 - Projects custom instructions güncellendi ✓ (her iki raw URL + skill/model/token kuralları)
 
 Açık görevler:
-- STAGE-6: Meta-öğrenici + missingness flags
-  * models/meta_learner.py → Ridge × 3 (q=0.1/0.5/0.9)
-  * Girdi: X_meta (9 OOF) + 4 missingness flag = 13 özellik
-  * flags'lı vs flags'sız karşılaştırma (Diebold-Mariano testi için zemin)
+- STAGE-7: Optuna hiperparametre optimizasyonu
+  * LightGBM / CatBoost / XGBoost hiperparametreleri + Ridge alpha
+  * Objective: (L_0.1 + L_0.5 + L_0.9) / 3 validation pinball
+  * TPE sampler + MedianPruner
 
 Sistem:
 - claude.ai Projects → düşünme, yazım, karar
