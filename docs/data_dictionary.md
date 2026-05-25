@@ -104,64 +104,86 @@ target  = 96_DKA_MasterMeter1_Active_Power                     [kW]
 
 ## 2. PVOD v1.0
 
-### 2.1 Durum — ANA VERİ DOSYALARI EKSİK
-
-> **UYARI:** `data/raw/pvod/datasets/` altında yalnızca McClear yardımcı dosyaları bulunmaktadır.  
-> 10 istasyon CSV'si (`Station_0.csv` … `Station_9.csv`) ve `metadata.csv` **eksik**.  
-> Kaynak: PVOD README → _"Please download the datasets from the website of the journal Solar Energy."_  
-> İndirme adresi: http://www.doi.org/10.11922/sciencedb.01094
-
-Eksik dosya listesi:
-
-```
-Station_0.csv  Station_1.csv  Station_2.csv  Station_3.csv  Station_4.csv
-Station_5.csv  Station_6.csv  Station_7.csv  Station_8.csv  Station_9.csv
-metadata.csv
-```
-
-### 2.2 Beklenen Yapı (kaynak: `src/pvodataset.py`)
-
-**Genel Bilgi (hedeflenen):**
+### 2.1 Genel Bilgi
 
 | Özellik | Değer |
 |---------|-------|
-| Toplam kayıt | 271,968 |
+| Kaynak | Yao vd. (2021), Solar Energy, doi:10.1016/j.solener.2021.09.050 |
+| Dosyalar | `data/raw/pvod/datasets/station00.csv` … `station09.csv` + `metadata.csv` |
+| Toplam kayıt | **271,968** ✓ |
 | İstasyon sayısı | 10 (Hebei, Çin) |
 | Örnekleme frekansı | 15 dakika |
-| Zaman aralığı | 2019–2020 |
-| Kaynak | Yao vd. (2021), Solar Energy, doi:10.1016/j.solener.2021.09.050 |
+| Zaman aralığı | 2018-06-30 → 2019-06-13 (istasyona göre değişir) |
+| Saat dilimi | UTC (yerel UTC+8) |
+| Genel eksik veri | **%0.0** (temiz veri seti) |
 
-**Beklenen sütunlar:**
+### 2.2 Sütun Yapısı
 
-| Sütun | Kaynak | Birim | Açıklama |
-|-------|--------|-------|----------|
-| `date_time` | — | datetime | Zaman damgası |
-| `nwp_globalirrad` | NWP | W/m² | Küresel ışınım (model) |
-| `nwp_dirrectirrad` | NWP | W/m² | Direkt ışınım (model) |
-| `nwp_temperature` | NWP | °C | Hava sıcaklığı (model) |
-| `nwp_humidity` | NWP | % | Bağıl nem (model) |
-| `nwp_windspeed` | NWP | m/s | Rüzgar hızı (model) |
-| `nwp_winddirection` | NWP | ° | Rüzgar yönü (model) |
-| `nwp_pressure` | NWP | hPa | Basınç (model) |
-| `lmd_totalirrad` | LMD | W/m² | Toplam ışınım (ölçüm) |
-| `lmd_diffuseirrad` | LMD | W/m² | Difüz ışınım (ölçüm) |
-| `lmd_temperature` | LMD | °C | Sıcaklık (ölçüm) |
-| `lmd_pressure` | LMD | hPa | Basınç (ölçüm) |
-| `lmd_winddirection` | LMD | ° | Rüzgar yönü (ölçüm) |
-| `lmd_windspeed` | LMD | m/s | Rüzgar hızı (ölçüm) |
-| `power` | LMD | kW | **Hedef değişken — PV gücü** |
+| Sütun | Kaynak | Birim | Min | Max | Açıklama |
+|-------|--------|-------|-----|-----|----------|
+| `date_time` | — | datetime | 2018-08-15 | 2019-06-13 | Zaman damgası |
+| `nwp_globalirrad` | NWP | W/m² | 0.0 | 964.1 | Küresel ışınım (model) |
+| `nwp_directirrad` | NWP | W/m² | 0.0 | 910.1 | Direkt ışınım (model) |
+| `nwp_temperature` | NWP | °C | −19.8 | 41.1 | Hava sıcaklığı (model) |
+| `nwp_humidity` | NWP | % | 4.6 | 100.0 | Bağıl nem (model) |
+| `nwp_windspeed` | NWP | m/s | 0.05 | 19.7 | Rüzgar hızı (model) |
+| `nwp_winddirection` | NWP | ° | 0.0 | 360.0 | Rüzgar yönü (model) |
+| `nwp_pressure` | NWP | hPa | 869.8 | 1044.8 | Basınç (model) |
+| `lmd_totalirrad` | LMD | W/m² | 0.0 | **1838.0** | Toplam ışınım (ölçüm) — anomali var |
+| `lmd_diffuseirrad` | LMD | W/m² | 0.0 | 1122.0 | Difüz ışınım (ölçüm) |
+| `lmd_temperature` | LMD | °C | −23.9 | 41.6 | Sıcaklık (ölçüm) |
+| `lmd_pressure` | LMD | hPa | 867.8 | 1049.1 | Basınç (ölçüm) |
+| `lmd_winddirection` | LMD | ° | 0.0 | 360.0 | Rüzgar yönü (ölçüm) |
+| `lmd_windspeed` | LMD | m/s | 0.0 | 16.0 | Rüzgar hızı (ölçüm) |
+| `power` | LMD | MW | 0.0 | 35.1 | **Hedef değişken — PV gücü** |
 
-### 2.3 Mevcut McClear Yardımcı Dosyalar
+### 2.3 İstasyon Bazlı Özet
 
-CAMS McClear v3.1 açık-gökyüzü ışınım modeli çıktıları. STAGE-3'te `G₀` (ekstraterrestrial + clearsky referans) üretimi için kullanılacak.
+| İstasyon | Satır | Kapasite (kWp) | PV Teknoloji | Zaman Aralığı | Tekrar TS | Anomali |
+|----------|-------|----------------|-------------|---------------|-----------|---------|
+| station00 | 28,896 | 6,600 | Poly-Si | 2018-08-15 → 2019-06-13 | 1 | — |
+| station01 | 33,408 | 20,000 | Poly-Si | 2018-06-30 → 2019-06-13 | 0 | — |
+| station02 | 30,432 | 17,000 | **Mono-Si** | 2018-07-22 → 2019-06-10 | 0 | — |
+| station03 | 14,688 | 20,000 | Poly-Si | 2019-01-11 → 2019-06-13 | 0 | — |
+| station04 | 33,408 | 20,000 | Poly-Si | 2018-06-30 → 2019-06-13 | 0 | lmd_irrad>1500: 10 satır |
+| station05 | 9,696 | **35,000** | Poly-Si | 2019-03-04 → 2019-06-13 | 0 | — |
+| station06 | 31,104 | 15,000 | Poly-Si | 2018-07-13 → 2019-06-13 | 0 | — |
+| station07 | 32,928 | 20,000 | Poly-Si | 2018-06-30 → 2019-06-13 | 0 | lmd_irrad>1500: 1 satır |
+| station08 | 33,120 | 20,000 | Poly-Si | 2018-06-30 → 2019-06-13 | 0 | — |
+| station09 | 24,288 | 20,000 | Poly-Si | 2018-09-25 → 2019-06-13 | 0 | — |
+| **Toplam** | **271,968** | — | — | 2018-06-30 → 2019-06-13 | 1 | 11 satır irrad anomali |
+
+### 2.4 Anomali Tespiti
+
+| Anomali | Satır | Değerlendirme |
+|---------|-------|---------------|
+| `lmd_totalirrad` > 1500 W/m² | 11 (station04: 10, station07: 1) | Fiziksel max ~1361 W/m²; temizlenecek |
+| Negatif güç | 0 | Temiz |
+| Negatif ışınım | 0 | Temiz |
+| Nem > %100 | 0 | Temiz |
+| Tekrarlayan timestamp | 1 (station00) | İhmal edilebilir |
+| Eksik veri | **%0.0** | Veri seti son derece temiz |
+
+### 2.5 STAGE-3 İçin Kullanılacak Sütunlar
+
+```
+G       = lmd_totalirrad      [W/m²]  (ölçüm — ana kaynak)
+G_nwp   = nwp_globalirrad    [W/m²]  (model — karşılaştırma)
+T_amb   = lmd_temperature    [°C]
+RH      = nwp_humidity       [%]     (LMD'de RH yok → NWP kullanılır)
+wind    = lmd_windspeed      [m/s]
+target  = power              [MW]
+```
+
+### 2.6 McClear Yardımcı Dosyalar
+
+CAMS McClear v3.1 açık-gökyüzü ışınım modeli çıktıları. STAGE-3'te clearsky index `k_t = G/G_clearsky` üretimi için kullanılacak.
 
 | Dosya | İstasyon | Satır | Zaman Aralığı |
 |-------|---------|-------|---------------|
-| `s5_clr_data.csv` | s5 | 500 | 2019-03-04 → 2019-03-09 |
-| `s7_clr_data.csv` | s7 | 1,536 | 2019-03-05 → 2019-03-20 |
-| `s7_clr_data_17-19.csv` | s7 | 192 | 2019-03-17 → 2019-03-19 |
-| `s7_clr_data_6-7.csv` | s7 | 96 | 2019-03-05 → 2019-03-06 |
-| `s8_clr_data.csv` | s8 | 96 | 2019-03-05 → 2019-03-06 |
+| `s5_clr_data.csv` | station05 | 500 | 2019-03-04 → 2019-03-09 |
+| `s7_clr_data.csv` | station07 | 1,536 | 2019-03-05 → 2019-03-20 |
+| `s8_clr_data.csv` | station08 | 96 | 2019-03-05 → 2019-03-06 |
 
 McClear sütunları: `date, TOA, GHI, BHI, DHI, BNI` (W/m², 15 dk, UTC)
 
@@ -171,11 +193,12 @@ McClear sütunları: `date, TOA, GHI, BHI, DHI, BNI` (W/m², 15 dk, UTC)
 
 | # | Eylem | Öncelik |
 |---|-------|---------|
-| 1 | PVOD Station_0-9.csv + metadata.csv indir (sciencedb.01094) | **ACİL** |
-| 2 | DKASC: 2023'e sızan 288 satırı at | Yüksek |
-| 3 | DKASC: tekrarlayan 3,456 timestamp'i çöz (ilkini tut) | Yüksek |
-| 4 | DKASC: Wind_Speed %47.6 eksik → STAGE-3'te missingness flag | Yüksek |
-| 5 | DKASC: Wind_Direction aykırı değerleri kırp [0, 360] | Orta |
-| 6 | DKASC: Radiation_Diffuse_Tilted max=97322 → üst sınır kırp | Orta |
-| 7 | DKASC: Sıcaklık < −10°C satırlarını at (3,047 adet) | Orta |
-| 8 | PVOD gelince EDA bölümünü tamamla | PVOD sonrası |
+| 1 | DKASC: 2023'e sızan 288 satırı at | Yüksek |
+| 2 | DKASC: tekrarlayan 3,456 timestamp'i çöz (ilkini tut) | Yüksek |
+| 3 | DKASC: Wind_Speed %47.6 eksik → STAGE-3'te missingness flag olarak ekle | Yüksek |
+| 4 | DKASC: Sıcaklık < −10°C satırlarını at (3,047 adet) | Orta |
+| 5 | DKASC: Nem > %100 → %100'e kırp (8,549 satır) | Orta |
+| 6 | DKASC: Wind_Direction aykırı değerleri kırp [0, 360] | Orta |
+| 7 | DKASC: Radiation_Diffuse_Tilted max=97322 → üst sınır kırp | Orta |
+| 8 | PVOD: lmd_totalirrad > 1500 W/m² olan 11 satırı at | Düşük |
+| 9 | PVOD: station00 tekrarlayan 1 timestamp'i at | Düşük |
