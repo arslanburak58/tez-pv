@@ -43,7 +43,7 @@ log = logging.getLogger(__name__)
 
 # ── Sabitler ───────────────────────────────────────────────────────────────────
 
-RANDOM_LOSS_RATES: tuple[float, ...] = (0.10, 0.25, 0.50)
+RANDOM_LOSS_RATES: tuple[float, ...] = (0.10, 0.20, 0.30, 0.50)
 BURST_DURATIONS_H: tuple[int, ...]   = (1, 6, 24)
 SENSOR_LOSS_TARGETS: tuple[str, ...] = ("G", "T_amb", "RH")
 FREQ_MINUTES_DEFAULT: int            = 5
@@ -77,14 +77,15 @@ PredictFn = Callable[[pd.DataFrame, pd.DataFrame], dict[str, np.ndarray]]
 class RobustnessScenario:
     name:   str
     axis:   str          # "random" | "burst" | "sensor"
-    level:  str          # "10pct"/"25pct"/"50pct" | "1h"/"6h"/"24h" | "G"/"Tamb"/"RH"
+    level:  str          # "10pct"/"20pct"/"30pct"/"50pct" | "1h"/"6h"/"24h" | "G"/"Tamb"/"RH"
     params: dict[str, Any] = field(default_factory=dict)
 
 
 ALL_SCENARIOS: list[RobustnessScenario] = [
     # Rastgele kayıp
     RobustnessScenario("random_10pct", "random", "10pct", {"rate": 0.10}),
-    RobustnessScenario("random_25pct", "random", "25pct", {"rate": 0.25}),
+    RobustnessScenario("random_20pct", "random", "20pct", {"rate": 0.20}),
+    RobustnessScenario("random_30pct", "random", "30pct", {"rate": 0.30}),
     RobustnessScenario("random_50pct", "random", "50pct", {"rate": 0.50}),
     # Burst kayıp
     RobustnessScenario("burst_1h",  "burst", "1h",  {"hours": 1}),

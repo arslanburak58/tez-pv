@@ -103,7 +103,7 @@ class TestRobustnessScenario:
 
 class TestAllScenarios:
     def test_count(self):
-        assert len(ALL_SCENARIOS) == 9
+        assert len(ALL_SCENARIOS) == 10
 
     def test_axes(self):
         axes = {s.axis for s in ALL_SCENARIOS}
@@ -457,15 +457,15 @@ class TestRunAllScenarios:
     def test_flags_shape(self):
         X, flags, y, fn_f, fn_nf = self._setup()
         results = run_all_scenarios(X, y, flags, fn_f, fn_nf)
-        # baseline + 9 senaryo = 10 satır
-        assert len(results["flags"]) == 10
-        assert len(results["noflags"]) == 10
+        # baseline + 10 senaryo = 11 satır
+        assert len(results["flags"]) == 11
+        assert len(results["noflags"]) == 11
 
     def test_dm_shape(self):
         X, flags, y, fn_f, fn_nf = self._setup()
         results = run_all_scenarios(X, y, flags, fn_f, fn_nf)
-        # baseline'da DM yok → 9 satır
-        assert len(results["dm"]) == 9
+        # baseline'da DM yok → 10 satır
+        assert len(results["dm"]) == 10
 
     def test_baseline_row_present(self):
         X, flags, y, fn_f, fn_nf = self._setup()
@@ -506,9 +506,10 @@ class TestPlotHeatmap:
             columns=metrics,
         )
         dm_index = [s.name for s in ALL_SCENARIOS]
+        n_s = len(dm_index)
         dm_df = pd.DataFrame(
-            {"dm_stat": rng.normal(0, 1, 9), "p_value": rng.uniform(0, 1, 9),
-             "mean_diff": rng.normal(0, 0.5, 9), "significant": [False] * 9},
+            {"dm_stat": rng.normal(0, 1, n_s), "p_value": rng.uniform(0, 1, n_s),
+             "mean_diff": rng.normal(0, 0.5, n_s), "significant": [False] * n_s},
             index=dm_index,
         )
         return {"flags": df, "noflags": df.copy(), "dm": dm_df}

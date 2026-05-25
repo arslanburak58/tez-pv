@@ -486,7 +486,7 @@ git commit -m "STAGE-5: 9 taban model eğitildi, OOF pinball raporlandı"
 **Adımlar:**
 
 1. `8.1` — `RobustnessScenario` sınıfı: test setine kayıp uygular, missingness flags günceller.
-2. `8.2` — Rastgele kayıp: %10, %25, %50 oranında NaN maskeleme.
+2. `8.2` — Rastgele kayıp: %10, %20, %30, %50 oranında NaN maskeleme.
 3. `8.3` — Burst kayıp: rastgele başlangıç + 1/6/24 saat süreli kesintisiz kayıp.
 4. `8.4` — Sensör-özgü kayıp: G-only, T_amb-only, RH-only.
 5. `8.5` — Her senaryoda Pinball ve CRPS ölç. Coverage değişimini de ekle.
