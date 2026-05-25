@@ -1,7 +1,7 @@
-## [Mayıs 2026] — STAGE-3 Tamamlandı
+## [Mayıs 2026] — STAGE-4 Tamamlandı
 
-Aktif adım: STAGE-4 bekleniyor
-Sıradaki konuşmada: "STAGE-4'e başlıyoruz" ile başlat
+Aktif adım: STAGE-5 bekleniyor
+Sıradaki konuşmada: "STAGE-5'e başlıyoruz" ile başlat
 Aktif model    : Sonnet 4.6 / Extended Thinking: kapalı
 Son güncelleme : Mayıs 2026
 Tıkanıklık     : yok
@@ -21,6 +21,13 @@ Tamamlanan:
   * 24/24 birim test geçti (tests/test_physical.py)
   * sklearn Pipeline + StandardScaler (train-only fit) hazır
   * DKASC_LOCATION ve DKASC_COL_MAP / PVOD_COL_MAP tanımlı
+- S4 Veri bölme + Walk-Forward ✓ — scripts/make_dataset.py
+  * Kronolojik 70/15/15, shuffle=False
+  * Missingness flags → ham veriden (imputasyondan önce)
+  * KNNImputer train-only fit; kısa boşluk (<3h) → lineer interpolasyon
+  * Fiziksel öznitelikler imputasyondan SONRA hesaplanıyor (NaN yok)
+  * TimeSeriesSplit(gap=24) Walk-Forward iskeleti
+  * 16/16 birim test geçti (tests/test_make_dataset.py)
 
 Altyapı:
 - Repo public ✓ (GitHub raw URL aktif)
@@ -28,10 +35,10 @@ Altyapı:
 - Projects custom instructions güncellendi ✓ (her iki raw URL + skill/model/token kuralları)
 
 Açık görevler:
-- STAGE-4: Kronolojik 70/15/15 bölme + Walk-Forward Validation iskeleti
-  * scripts/make_dataset.py → (X_train, y_train, X_val, y_val, X_test, y_test)
-  * TimeSeriesSplit(gap=24), KNNImputer train-only fit
-  * make leakage kontrolü
+- STAGE-5: 9 taban öğrenici (LightGBM × 3 + CatBoost × 3 + XGBoost × 3 quantile)
+  * models/base_learners.py → train_base_learner(algo, q, X, y) API
+  * Out-of-fold (OOF) tahminleri → X_meta matrisi (n_train × 9)
+  * Pinball loss validation skorları raporlanacak
 
 Sistem:
 - claude.ai Projects → düşünme, yazım, karar
