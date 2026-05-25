@@ -41,7 +41,7 @@ Test sonucu: **16/16 PASSED**
 ## STAGE-6 — Meta-öğrenici + Missingness Flags
 
 **Tarih:** 2026-05-26  
-**Commit:** `(bu oturum)`  
+**Commit:** `fa1ddd4` — `STAGE-6: Ridge × 3 meta-öğrenici + missingness flags (13 özellik)`  
 **Dosyalar:** `models/meta_learner.py`, `tests/test_meta_learner.py`, `models/base_learners.py` (güncellendi)
 
 Mimari:
