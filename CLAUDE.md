@@ -188,4 +188,15 @@ claude.ai Projects (bu ekran) şunları yapar:
 
 ---
 
+## GÜNCE SENKRONIZASYON
+
+`gunce.md` Google Drive'da yaşıyor. File ID: `1Fy9BiiRBFqKynGKU4Mn7jS1REVytlO3_`
+
+Günceyi güncellemek için:
+1. `docs/gunce.md` dosyasını düzenle
+2. İçeriği Drive'daki dosyaya da yaz (Google Drive MCP ile)
+3. `git commit -m "DOC: gunce.md güncellendi"`
+
+---
+
 Versiyon: Mayıs 2026
