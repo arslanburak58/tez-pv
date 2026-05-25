@@ -105,7 +105,7 @@ Test sonucu: **35/35 PASSED**
 ## STAGE-7 — Optuna Hiperparametre Optimizasyonu
 
 **Tarih:** 2026-05-26  
-**Commit:** `(bu oturum)`  
+**Commit:** `0ccba25` — `STAGE-7: Optuna TPE araması — 9 model val pinball objective, best_params.json`  
 **Dosyalar:** `optimization/optuna_search.py`, `optimization/__init__.py`, `tests/test_optuna_search.py`
 
 Mimari:
