@@ -11,6 +11,12 @@ Kaynak (Projects için): https://raw.githubusercontent.com/arslanburak58/tez-pv/
 
 ---
 
+## Okuma listesi (Claude her konuşmada fetch eder)
+- https://raw.githubusercontent.com/arslanburak58/tez-pv/main/docs/stage_log.md
+- https://raw.githubusercontent.com/arslanburak58/tez-pv/main/docs/manifest.json
+
+---
+
 Tamamlanan:
 - S0–S9 tamam — 283/283 test geçiyor
 - Tüm modeller checkpoints/ altında kayıtlı (15 öznitelik)

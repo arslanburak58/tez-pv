@@ -1,0 +1,36 @@
+{
+  "project": "tez-pv",
+  "title": "Fotovoltaik Sistemlerde Olasılıksal Güç Tahmini",
+  "student": "Burak Arslan",
+  "advisor": "Doç. Dr. Kenan Altun",
+  "institution": "Sivas Cumhuriyet Üniversitesi — YZ ve Veri Bilimi ABD",
+  "last_updated": "2026-05-26",
+  "active_stage": "STAGE-10",
+  "test_status": "283/283 PASSED",
+  "features": 15,
+  "model_inputs": {
+    "sensor_cols": ["G", "T_amb", "RH"],
+    "flag_cols": ["is_G_missing", "is_Tamb_missing", "is_RH_missing"],
+    "meta_in_cols": 12,
+    "note": "wind_speed cikartildi — DKASC %85 eksik, Ross formulu kullanmiyor"
+  },
+  "checkpoints": {
+    "base_models": "data/processed/base_models.joblib",
+    "meta_models": "data/processed/meta_models.joblib",
+    "x_meta": "data/processed/x_meta.joblib",
+    "dataset": "data/processed/dataset.joblib",
+    "baselines": [
+      "models/checkpoints/baseline_knn.joblib",
+      "models/checkpoints/baseline_svm.joblib",
+      "models/checkpoints/baseline_lstm.joblib",
+      "models/checkpoints/baseline_tft.joblib"
+    ]
+  },
+  "stages": {
+    "S0": "done", "S1": "done", "S2": "done", "S3": "done",
+    "S4": "done", "S5": "done", "S6": "done", "S7": "done",
+    "S8": "done", "S9": "done",
+    "S10": "in_progress",
+    "S11": "pending", "S12": "pending", "S13": "pending"
+  }
+}
