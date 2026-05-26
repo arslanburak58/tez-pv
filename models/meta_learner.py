@@ -155,6 +155,69 @@ class QuantileLinear:
         return X @ self.coef_ + self.intercept_
 
 
+# ── QuantileLinearBounded ─────────────────────────────────────────────────────
+
+
+class QuantileLinearBounded(QuantileLinear):
+    """
+    QuantileLinear with box constraints on flag coefficients.
+
+    Son `n_flag_features` katsayı için L-BFGS-B bounds parametresi ile
+    [-flag_bound, +flag_bound] kutu kısıtı uygulanır.
+    Diğer katsayılar (base model tahminleri + intercept) serbesttir.
+
+    Parameters
+    ----------
+    flag_bound : float, default=1.0
+        Flag katsayıları için üst sınır: coef ∈ [-flag_bound, +flag_bound].
+    n_flag_features : int, default=3
+        Kısıtlı flag katsayısı sayısı (son n_flag_features kolon).
+    """
+
+    def __init__(
+        self,
+        quantile: float,
+        alpha: float = 1.0,
+        max_iter: int = 500,
+        tol: float = 1e-6,
+        flag_bound: float = 1.0,
+        n_flag_features: int = 3,
+    ) -> None:
+        super().__init__(quantile, alpha, max_iter, tol)
+        self.flag_bound = flag_bound
+        self.n_flag_features = n_flag_features
+
+    def fit(self, X: np.ndarray, y: np.ndarray) -> "QuantileLinearBounded":
+        X = np.asarray(X, dtype=np.float64)
+        y = np.asarray(y, dtype=np.float64)
+        n_features = X.shape[1]
+        n_free = n_features - self.n_flag_features
+        x0 = np.zeros(n_features + 1)
+
+        # params = [intercept, free_coef_1..n_free, flag_coef_1..n_flag]
+        bounds: list[tuple] = [(None, None)] * (1 + n_free)
+        bounds += [(-self.flag_bound, self.flag_bound)] * self.n_flag_features
+
+        result = scipy.optimize.minimize(
+            fun=self._pinball_l2_objective,
+            x0=x0,
+            args=(X, y),
+            jac=self._pinball_l2_gradient,
+            method="L-BFGS-B",
+            bounds=bounds,
+            options={"maxiter": self.max_iter, "gtol": self.tol},
+        )
+
+        if not result.success:
+            warnings.warn(f"QuantileLinearBounded yakınsamadı: {result.message}")
+
+        self.intercept_ = float(result.x[0])
+        self.coef_ = result.x[1:]
+        self.n_iter_ = result.nit
+        self.converged_ = result.success
+        return self
+
+
 # ── Constants ──────────────────────────────────────────────────────────────────
 
 FLAG_COLS: list[str] = [
