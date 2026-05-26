@@ -48,7 +48,7 @@ S02_LOC: dict = {
     "altitude": 50,
     "tz": "Asia/Shanghai",
 }
-S02_CAPACITY: float = 17.0  # MW (power sütunu MW cinsinden)
+S02_CAPACITY: float = 17_000.0  # kW (power sütunu kW'a çevrildi)
 
 SENSOR_TO_FLAG: dict[str, str] = {
     "G": "is_G_missing",
@@ -84,6 +84,7 @@ def load_station02() -> pd.DataFrame:
         "nwp_humidity": "RH",
     })
     df["G"] = df["G"].clip(lower=0.0)
+    df["power"] = df["power"] * 1000.0  # PVOD power MW → kW
     return df
 
 
@@ -366,7 +367,7 @@ def main() -> None:
         else:
             y_plot     = y_s02
             preds_plot = preds_s02
-            ylabel     = "Güç (MW)"
+            ylabel     = "Güç (kW)"
 
         fig2 = plot_forecast(
             y_plot, preds_plot,
@@ -378,8 +379,8 @@ def main() -> None:
 
         m2 = compute_metrics(y_plot, preds_plot)
         c1, c2, c3, c4 = st.columns(4)
-        c1.metric("MAE",      f"{m2['MAE']:.4f}" + (" (norm)" if normalize else " MW"))
-        c2.metric("RMSE",     f"{m2['RMSE']:.4f}" + (" (norm)" if normalize else " MW"))
+        c1.metric("MAE",      f"{m2['MAE']:.4f}" + (" (norm)" if normalize else " kW"))
+        c2.metric("RMSE",     f"{m2['RMSE']:.4f}" + (" (norm)" if normalize else " kW"))
         c3.metric("Pinball",  f"{m2['Pinball']:.4f}")
         c4.metric("Coverage", f"{m2['Coverage']:.1%}",
                   delta=f"{m2['Coverage']-0.80:+.1%} (hedef %80)")
