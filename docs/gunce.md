@@ -1,4 +1,4 @@
-## [Mayıs 2026] — STAGE-8 v7 Tamamlandı
+## [Mayıs 2026] — Strategy A Deneyi Tamamlandı
 
 **>>> DEVAM KOMUTU: Yeni konuşmayı "STAGE-11 Streamlit demo" ile başlat <<<**
 
@@ -19,21 +19,21 @@ Kaynak (Projects için): https://raw.githubusercontent.com/arslanburak58/tez-pv/
 ---
 
 Tamamlanan (bu oturumda):
-- S0–S9 zaten tamamdı (önceki oturum)
-- STAGE-6 REVİZE — Ridge MSE → QuantileLinear (scipy L-BFGS-B + pinball + L2)
-- STAGE-10 daylight + CQR k=2.0, stacked CRPS=0.738, coverage=0.842
-- meta_robust_v2 → v3 → v4 → v5/v6/v7 deney serisi (kök neden analizi)
-- STAGE-8 v7 ile tamamlandı (9/9 DM anlamlı, avg ΔCRPS=+1.44%)
-  * meta_models_robust_v7.joblib aktif model
-  * v7: v5 aug (burst+random) + QuantileLinearBounded (flag_bound=1.0)
-  * Flag katsayıları: q09_G=+0.11, q01_G=-1.0 (bounded)
-  * Coverage 0.72–0.88 bandında, 9/9 DM p<0.05
+- S0–S10 zaten tamamdı (önceki oturum)
+- Strategy A izole deney (`experiment/strategy-a-imputation` branch):
+  * rolling same-hour imputation vs ffill karşılaştırması
+  * SA flag katsayıları: q09_G=+1.0 / q01_G=-1.0 (simetrik — semantik doğru)
+  * SA STAGE-8 ort. ΔCRPS = +2.40%  (v7: +1.44%) — ffill daha iyi performans
+  * T_amb ve RH senaryoları SA ile marginal iyileşti (-0.14%, -0.32%)
+  * Sonuç: H1 iki bağımsız imputation altında doğrulanamadı → yapısal sınır
+- methodology_decisions.md Karar 8 eklendi (Strategy A deneyi + tez paragrafı)
+- Tüm çıktılar experiments/strategy_a/ altında, main dokunulmadı
 
-STAGE-8 final özeti (v7):
-- Rnd G %10: +0.95%  | Rnd G %20: +1.87%  | Rnd G %30: +2.92%  | Rnd G %50: +4.99%
-- Burst G 1h: +2.35% | Burst G 6h: -0.09% | Burst G 24h: -0.79%
-- Rnd T_amb %30: +1.18% | Rnd RH %30: -0.44%
-- Ortalama: +1.44% (v2: +6.2%), flags iyileştirdi: 3/9
+Strategy A STAGE-8 özeti (rolling imputation):
+- Rnd G %10: +1.40% | Rnd G %30: +3.54% | Rnd G %50: +4.98%
+- Burst G 1h: +3.47% | Burst G 6h: +2.88% | Burst G 24h: +3.18%
+- Rnd T_amb %30: -0.14% | Rnd RH %30: -0.32%
+- Ortalama: +2.40%, flags iyileştirdi: 2/9, DM anlamlı: 9/9
 
 Açık görevler:
 - STAGE-11: Streamlit demo (app/app.py)
@@ -45,14 +45,21 @@ Açık görevler:
 
 Metodoloji notu (savunmaya hazır):
 - v7 = "corruption-aware training (v5: burst+random aug) + QuantileLinearBounded (flag_bound=1.0)"
-- q09 bounded [-1, +1] → flag katsayısı artık anlamlı semantik: G eksik → q01 düşüyor, q09 hafif artıyor (uncertainty genişlemesi)
-- H1 yorumu: Flags CRPS'i küçük miktarda artırıyor (+1.44%) ama 9/9 DM anlamlı → flags bilgi taşıyor. Coverage tutarlı iyileşiyor.
+- H1 yorumu: İki imputation stratejisi (ffill ve rolling) altında da H1 doğrulanamadı.
+  Flag-tabanlı meta müdahalesi gradient boosting + iyi imputation çiftinde yapısal olarak sınırlı.
+  Coverage stabilizasyonu gerçek katkı olarak kalmaktadır.
+- Karar 8: methodology_decisions.md'de belgelenmiş, danışman toplantısına hazır.
 
-Checkpoints:
+Checkpoints (main):
 - data/processed/meta_models_robust_v7.joblib  ← AKTİF
 - data/processed/meta_models_robust_v2.joblib  ← referans (eski)
 - figures/robustness_v7_*.png/pdf              ← STAGE-8 görselleri
-- figures/robustness_*.png/pdf                 ← v2 görselleri (saklandı)
+
+Checkpoints (Strategy A — experiment branch):
+- experiments/strategy_a/models/meta_models_robust_sa.joblib
+- experiments/strategy_a/models/base_models_sa.joblib
+- experiments/strategy_a/data/stage8_results_sa.joblib
+- experiments/strategy_a/figures/sa_crps_bar.png/pdf
 
 Sistem:
 - claude.ai Projects → düşünme, yazım, karar
