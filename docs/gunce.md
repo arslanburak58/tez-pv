@@ -1,12 +1,15 @@
 ## [Mayıs 2026] — STAGE-9 Tamamlandı
 
-Aktif adım: STAGE-10 başlangıcı
-Sıradaki konuşmada: "STAGE-10'a başlıyoruz" ile başlat
-Aktif model    : Sonnet 4.6 / Extended Thinking: kapalı
-Son güncelleme : 26 Mayıs 2026
-Tıkanıklık     : yok
+**>>> DEVAM KOMUTU: Bu konuşmayı "STAGE-10'a başlıyoruz" ile başlat <<<**
+
+Aktif adım    : STAGE-10 başlangıcı
+Aktif model   : Sonnet 4.6 / Extended Thinking: kapalı
+Son güncelleme: 26 Mayıs 2026
+Tıkanıklık    : yok
 
 Kaynak (Projects için): https://raw.githubusercontent.com/arslanburak58/tez-pv/main/docs/gunce.md
+
+---
 
 Tamamlanan:
 - S0–S9 tamam — 283/283 test geçiyor
