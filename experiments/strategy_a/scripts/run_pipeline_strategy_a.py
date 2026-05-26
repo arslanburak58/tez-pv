@@ -368,24 +368,26 @@ def step4b_robust_meta(
     X_meta_clean_12 = enrich_x_meta(X_meta_clean, flags_clean)
     y_clean = dataset["y_train"].reindex(X_meta_clean_12.index)
 
-    # Val sensor tail for rolling context
-    val_sensor_tail  = dataset["val_sensor_tail"]
-    avail_sensors    = [c for c in SENSOR_COLS if c in X_val.columns]
+    avail_sensors = [c for c in SENSOR_COLS if c in X_val.columns]
+    # Train kuyruğu: X_val ile index çakışması yok (kronolojik bölme)
+    train_sensor_tail = dataset["X_train"][avail_sensors].iloc[
+        -CONTEXT_DAYS * 24 * STEPS_PER_HOUR :
+    ]
 
     def _corrupt_rolling_enrich(
         X: pd.DataFrame, sensor: str, row_mask: np.ndarray
     ) -> tuple[pd.DataFrame, pd.Series]:
-        """Corrupt → rolling impute (with val tail context) → base preds → X12."""
-        # Build context + corrupted sensor series
+        """Corrupt → rolling impute (with train tail context) → base preds → X12."""
         corrupted_sensor = X[avail_sensors].copy()
         corrupted_sensor.loc[X.index[row_mask], sensor] = np.nan
 
-        context_combined = pd.concat([val_sensor_tail, corrupted_sensor])
+        context_combined = pd.concat([train_sensor_tail, corrupted_sensor])
         filled_combined  = rolling_same_hour_imputation(
             context_combined, [sensor]
         )
         X_c = X.copy()
-        X_c[sensor] = filled_combined.loc[X.index, sensor].values
+        # .loc döndürdüğü indeksler X.index'le aynı, çakışma yok
+        X_c[sensor] = filled_combined.loc[X.index, sensor].to_numpy()
 
         # Recompute T_cell / k_t if sensor affects them
         if sensor in ("G", "T_amb"):
