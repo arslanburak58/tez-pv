@@ -18,7 +18,7 @@ from typing import Any
 import joblib
 import numpy as np
 import pandas as pd
-from sklearn.impute import KNNImputer
+from sklearn.impute import KNNImputer, SimpleImputer
 from sklearn.model_selection import TimeSeriesSplit
 
 from features.physical import DKASC_COL_MAP, PVOD_COL_MAP, build_physical_features
@@ -37,6 +37,8 @@ VAL_RATIO: float = 0.15
 
 INTERP_GAP_HOURS: float = 3.0   # gaps ≤ this → linear interpolation
 KNN_NEIGHBORS: int = 5
+
+IMPUTER_STRATEGIES: tuple[str, ...] = ("ffill", "median", "knn")
 WF_GAP: int = 24                 # Walk-Forward gap (timesteps, not hours)
 WF_N_SPLITS: int = 5
 
@@ -120,16 +122,20 @@ def make_dataset(
     interp_gap_hours: float = INTERP_GAP_HOURS,
     n_neighbors: int = KNN_NEIGHBORS,
     imputer_path: str | None = None,
+    imputer_strategy: str = "ffill",
 ) -> dict[str, Any]:
     """
     Ham DataFrame'den (X_train, y_train, X_val, y_val, X_test, y_test) üret.
 
     Adımlar (leakage-safe):
       1. Missingness flags → ham veriden
-      2. Fiziksel öznitelikler (stateless pvlib)
-      3. Kronolojik 70/15/15 bölme
-      4. Kısa boşluk interpolasyonu (her split ayrı ayrı)
-      5. KNNImputer: train'de fit, val/test'e transform
+      2. Kronolojik 70/15/15 bölme
+      3. Kısa boşluk interpolasyonu (her split ayrı ayrı)
+      4. İmputation (imputer_strategy: "ffill" | "median" | "knn")
+         - "ffill": ileri/geri doldurma — zaman serisi için varsayılan, O(n)
+         - "median": train medyanı → val/test'e transform, O(n)
+         - "knn": KNNImputer(n_neighbors) — doğru ama O(n²), büyük veride yavaş
+      5. Fiziksel öznitelikler → imputasyondan sonra (NaN kalmaz)
       6. Scaler yok — model pipeline'ında olacak (STAGE-5)
 
     Returns:
@@ -180,23 +186,50 @@ def make_dataset(
     val_raw = _interpolate_short_gaps(val_raw, sensor_cols_avail, freq_minutes, interp_gap_hours)
     test_raw = _interpolate_short_gaps(test_raw, sensor_cols_avail, freq_minutes, interp_gap_hours)
 
-    # ── 4. KNNImputer — SADECE train'de fit, sensör kolonlarına ───────────────
-    # Tamamen NaN olan kolonlar (ör. wind_speed 2017+ yıllarında eksik) imputer'a
-    # verilmez; NaN olarak kalır — missingness flag zaten 1, tree modelleri NaN'ı kaldırır.
+    # ── 4. İmputation — imputer_strategy seçimine göre ────────────────────────
+    # Tamamen NaN olan kolonlar imputable listesine alınmaz;
+    # missingness flag zaten 1, tree modelleri NaN'ı tolere eder.
+    if imputer_strategy not in IMPUTER_STRATEGIES:
+        raise ValueError(
+            f"imputer_strategy='{imputer_strategy}' geçersiz. "
+            f"Seçenekler: {IMPUTER_STRATEGIES}"
+        )
     imputable = [c for c in sensor_cols_avail if not train_raw[c].isna().all()]
     skipped   = [c for c in sensor_cols_avail if c not in imputable]
     if skipped:
         log.warning("Tamamı NaN, impute edilmedi: %s", skipped)
 
-    imputer = KNNImputer(n_neighbors=n_neighbors)
-    if imputable:
-        train_raw[imputable] = imputer.fit_transform(train_raw[imputable])
-        val_raw[imputable]   = imputer.transform(val_raw[imputable])
-        test_raw[imputable]  = imputer.transform(test_raw[imputable])
+    imputer: Any = None
 
-    if imputer_path:
+    if imputer_strategy == "knn":
+        imputer = KNNImputer(n_neighbors=n_neighbors)
+        if imputable:
+            train_raw[imputable] = imputer.fit_transform(train_raw[imputable])
+            val_raw[imputable]   = imputer.transform(val_raw[imputable])
+            test_raw[imputable]  = imputer.transform(test_raw[imputable])
+
+    elif imputer_strategy == "median":
+        imputer = SimpleImputer(strategy="median")
+        if imputable:
+            train_raw[imputable] = imputer.fit_transform(train_raw[imputable])
+            val_raw[imputable]   = imputer.transform(val_raw[imputable])
+            test_raw[imputable]  = imputer.transform(test_raw[imputable])
+
+    else:  # "ffill" — ileri/geri doldurma, durumsuz (stateless)
+        for split in (train_raw, val_raw, test_raw):
+            if imputable:
+                split[imputable] = split[imputable].ffill().bfill()
+            # Hâlâ NaN kalan sütunlar (split başından itibaren NaN): 0 ile doldur
+            remaining_nan = [c for c in imputable if split[c].isna().any()]
+            if remaining_nan:
+                split[remaining_nan] = split[remaining_nan].fillna(0.0)
+                log.warning("ffill sonrası 0 dolduruldu: %s", remaining_nan)
+
+    if imputer_path and imputer is not None:
         joblib.dump(imputer, imputer_path)
         log.info("Imputer kaydedildi: %s", imputer_path)
+
+    log.info("İmputation tamamlandı | strateji=%s", imputer_strategy)
 
     # ── 5. Fiziksel öznitelikler (imputasyondan SONRA — NaN kalmaz) ───────────
     train_feat = build_physical_features(train_raw, location, g_col="G", t_amb_col="T_amb")

@@ -210,3 +210,21 @@ Yardımcı:
 - `train_all_baselines` — 4 modeli sırayla eğit + değerlendir
 
 Test sonucu: **43/43 PASSED**
+
+---
+
+## STAGE-4 Revizyon — KNNImputer → ffill/bfill
+
+**Tarih:** 2026-05-26
+
+**Gerekçe:** Gerçek DKASC verisiyle (`950K × 4`) eğitim pipeline'ı çalıştırılırken `KNNImputer.fit_transform` 42+ dakika sonra hâlâ bitmemişti. sklearn KNNImputer `nan_euclidean_distances` ile pairwise mesafe matrisi hesapladığından O(n²) zaman karmaşıklığı gösterir; büyük veri setlerinde pratik değil.
+
+**Yapılan değişiklik:** `scripts/make_dataset.py`'e `imputer_strategy: str = "ffill"` parametresi eklendi.
+- `"ffill"`: pandas `ffill().bfill()` — stateless, O(n), varsayılan
+- `"median"`: `SimpleImputer(strategy='median')` — train'de fit, O(n)
+- `"knn"`: orijinal `KNNImputer` — korundu, küçük veri setleri için
+
+**Tez yazımında:** Yöntem bölümünde şu şekilde açıklanacak:
+> "Kısa boşluklar (≤ 3 saat) doğrusal interpolasyonla dolduruldu. Daha uzun boşluklar için ileriye/geriye doldurma (ffill/bfill) stratejisi kullanıldı; bu yaklaşım zaman serisi verisinde komşu gözlemlerin en bilgilendirici kaynak olduğu varsayımıyla tutarlıdır (Little & Rubin, 2002). Missingness flags ayrıca meta-katmana aktarıldığından imputation kalitesi nihai modeli ikincil olarak etkiler."
+
+**Test sonucu:** **19/19 PASSED** (3 yeni test dahil: median strateji, geçersiz strateji, tüm stratejiler NaN-free)

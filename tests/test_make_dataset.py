@@ -11,6 +11,7 @@ np.random.seed(42)
 
 from features.physical import DKASC_LOCATION
 from scripts.make_dataset import (
+    IMPUTER_STRATEGIES,
     make_dataset,
     make_missingness_flags,
     make_walk_forward_splits,
@@ -107,15 +108,38 @@ def test_chronological_order() -> None:
 # ── make_dataset — leakage ────────────────────────────────────────────────────
 
 def test_imputer_fit_on_train_only() -> None:
-    """Imputer statistics must come from train data, not val/test."""
+    """ffill (default): stateless, imputer=None; val/test NaN-free."""
     df = _synthetic_df(n=600, missing_frac=0.1)
     out = make_dataset(df, DKASC_LOCATION, freq_minutes=5)
-    imp = out["imputer"]
-    # KNNImputer stores no explicit mean, but fitting should complete without error
-    # and val/test imputation uses train statistics
-    assert imp is not None
+    # ffill is stateless — no sklearn imputer object
+    assert out["imputer"] is None
     assert not out["X_val"].isna().any().any()
     assert not out["X_test"].isna().any().any()
+
+
+def test_imputer_median_fit_on_train_only() -> None:
+    """median strategy: imputer is a fitted SimpleImputer."""
+    df = _synthetic_df(n=600, missing_frac=0.1)
+    out = make_dataset(df, DKASC_LOCATION, freq_minutes=5, imputer_strategy="median")
+    from sklearn.impute import SimpleImputer
+    assert isinstance(out["imputer"], SimpleImputer)
+    assert not out["X_val"].isna().any().any()
+    assert not out["X_test"].isna().any().any()
+
+
+def test_imputer_strategy_invalid() -> None:
+    df = _synthetic_df(n=300)
+    with pytest.raises(ValueError, match="imputer_strategy"):
+        make_dataset(df, DKASC_LOCATION, freq_minutes=5, imputer_strategy="bogus")
+
+
+def test_all_strategies_produce_no_nans() -> None:
+    """Her strateji NaN bırakmadan tamamlanmalı."""
+    df = _synthetic_df(n=500, missing_frac=0.1)
+    for strategy in IMPUTER_STRATEGIES:
+        out = make_dataset(df, DKASC_LOCATION, freq_minutes=5, imputer_strategy=strategy)
+        for split in ("X_train", "X_val", "X_test"):
+            assert not out[split].isna().any().any(), f"{strategy}/{split} NaN içeriyor"
 
 
 def test_no_nans_after_imputation() -> None:

@@ -379,7 +379,7 @@ make leakage
 
 1. `4.1` — Kronolojik 70/15/15 bölme. `shuffle=False` zorunlu.
 2. `4.2` — Train/val/test sınırlarında zaman aşımı kontrolü yap. Başlangıç-bitiş tarihlerini logla.
-3. `4.3` — Eksik veri imputasyon: 3 saatten kısa → doğrusal interpolasyon, üstü → `KNNImputer`. Sadece train'de fit.
+3. `4.3` — Eksik veri imputasyon: 3 saatten kısa → doğrusal interpolasyon, üstü → `ffill/bfill` (varsayılan). `imputer_strategy` parametresiyle "median" veya "knn" de seçilebilir. **Not:** KNNImputer 950K satırda O(n²) hesaplama maliyeti nedeniyle terk edildi; ffill/bfill zaman serisi için daha uygun ve O(n).
 4. `4.4` — Walk-Forward Validation iskeleti: `TimeSeriesSplit(gap=24)`.
 5. `4.5` — `make_dataset()` fonksiyonu: ham veri → (X_train, y_train, X_val, y_val, X_test, y_test).
 
