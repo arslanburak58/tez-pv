@@ -201,6 +201,85 @@ H1 doğrulanmamış olmakla birlikte, coverage tüm dokuz senaryoda nominal %80 
 
 ---
 
+---
+
+## Karar 8: Imputation Stratejisi Karşılaştırması — Strategy A Deneyi
+
+**Bağlam:** Karar 7'de v7 ile yapılan tam STAGE-8 çalıştırmasında
+ortalama ΔCRPS = +%1.44 bulundu. Akademik danışman görüşmesi öncesi,
+ffill imputation patolojisinin sonuçları etkileyip etkilemediğini
+test etmek üzere izole bir deney tasarlandı.
+
+**Test edilen alternatif:** Rolling same-hour mean imputation
+- Eksik gözlem için son 7 günün aynı saat değerinin ortalaması
+- Fallback: 30 günlük pencere
+- Leakage yok (sadece geçmiş gözlemler)
+- Sezonsal ve diurnal pattern doğal korunuyor
+
+**İzolasyon stratejisi:** Yeni branch `experiment/strategy-a-imputation`.
+Tüm output'lar `experiments/strategy_a/` altında. Main branch ve mevcut
+v7 checkpoint'leri dokunulmadan korundu.
+
+### Sonuçlar — Strategy A vs v7 (ffill)
+
+| Senaryo | v7 (ffill) ΔCRPS | SA (rolling) ΔCRPS |
+|---|---|---|
+| Rnd G %10 | +0.95% | +1.40% |
+| Rnd G %30 | +2.92% | +3.54% |
+| Rnd G %50 | +4.99% | +4.98% |
+| Burst G 1h | +2.35% | +3.47% |
+| Rnd T_amb %30 | +1.18% | -0.14% |
+| Rnd RH %30 | -0.44% | -0.32% |
+| **Ortalama** | **+1.44%** | **+2.40%** |
+
+Flag katsayıları (q09_G / q01_G):
+- v7: +0.11 / -1.00 (asimetrik)
+- SA: +1.00 / -1.00 (simetrik, semantik olarak doğru)
+
+### Yorum
+
+Strategy A flag katsayılarının semantik içeriğini düzeltti (simetrik
+belirsizlik genişlemesi) ancak **CRPS'i iyileştirmedi**. Kritik mekanik:
+
+> İyi imputation → base prediction'lar zaten iyi → meta'nın "flag
+> aktif → bant genişlet" davranışı **gereksiz** → gereksiz geniş
+> bant pinball loss'u artırır → CRPS yükselir.
+
+Bu, gradient boosting + iyi imputation çiftinin yapısal bir sonucudur:
+flag mekanizması ancak base preds bozulduğunda yardım edebilir, ama
+base preds bozuk olunca tahmin zaten kötü olur. Mekanik dilemmayla
+çarpıyor.
+
+### Tez Sonucu
+
+**H1 hipotezi iki bağımsız imputation stratejisi (ffill ve rolling
+same-hour) altında doğrulanamadı.** Bu bulgu:
+- Tek bir imputation tercihinin yanıltıcı olmadığını gösterir
+- Gradient boosting taban modellerinin sensör eksikliğine içsel
+  dayanıklılığını (Twala ve ark., 2008) ampirik olarak destekler
+- Flag-tabanlı meta-katman müdahalesinin bu mimaride yapısal olarak
+  sınırlı olduğunu kanıtlar
+
+### Atıflar
+
+- Twala, B. E. T. H. ve ark. (2008).
+- Perez-Lebel ve ark. (2022).
+- Rolling imputation: Hyndman & Athanasopoulos (2018) "Forecasting:
+  Principles and Practice" — same-hour seasonal naive imputation
+
+### Tez Paragrafı (Bulgular bölümü için ek)
+
+> "Flag mekanizmasının imputation stratejisine bağımlılığını test
+> etmek üzere, ana çalışmadaki ffill imputation yerine rolling
+> same-hour mean imputation kullanılarak izole bir doğrulama
+> deneyi gerçekleştirilmiştir. Her iki imputation altında da H1
+> hipotezi doğrulanamamış (ffill: +%1.44, rolling: +%2.40 ortalama
+> ΔCRPS), bu durum flag-tabanlı meta-katman müdahalesinin gradient
+> boosting yığın mimarisinde yapısal olarak sınırlı kaldığını
+> ortaya koymaktadır."
+
+---
+
 ## Genel Notlar
 
 - **Tüm seed'ler 42**, reprodüksiyon garantili.
