@@ -175,6 +175,20 @@ def test_target_not_in_X() -> None:
 
 # ── make_dataset — reproducibility ────────────────────────────────────────────
 
+def test_target_nan_rows_dropped() -> None:
+    """Target NaN olan satırlar veri setinden düşürülmeli."""
+    rng = np.random.default_rng(99)
+    times = pd.date_range("2015-01-01", periods=500, freq="5min", tz="UTC")
+    df = pd.DataFrame(
+        {"G": 1.0, "T_amb": 25.0, "RH": 50.0, "wind_speed": 5.0,
+         "target": rng.uniform(0, 100, 500)}, index=times
+    )
+    df.loc[df.index[:10], "target"] = np.nan
+    out = make_dataset(df, DKASC_LOCATION, freq_minutes=5)
+    total = len(out["X_train"]) + len(out["X_val"]) + len(out["X_test"])
+    assert total == 490  # 10 NaN satır düşürüldü
+
+
 def test_reproducible_output() -> None:
     df = _synthetic_df(n=500)
     out1 = make_dataset(df, DKASC_LOCATION, freq_minutes=5)

@@ -152,6 +152,16 @@ def make_dataset(
 
     df = df.sort_index()
 
+    # ── 0. Target NaN satırlarını düşür ───────────────────────────────────────
+    # Hedef değeri olmayan satırlar eğitim için kullanılamaz.
+    nan_target = df[target_col].isna()
+    if nan_target.any():
+        log.warning(
+            "Target NaN: %d satır düşürüldü (%% %.1f)",
+            nan_target.sum(), nan_target.mean() * 100,
+        )
+        df = df[~nan_target].copy()
+
     # ── 1. Missingness flags (raw veriden, imputasyondan önce) ─────────────────
     flags = make_missingness_flags(df)
 
