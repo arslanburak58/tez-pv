@@ -407,3 +407,61 @@ Sonuç: H1 iki bağımsız imputation stratejisi altında doğrulanamadı. Flag 
 **Stacked vs TFT defansı:** TFT CRPS daha düşük ama coverage 0.53 (kalibre değil). Tez metnindeki ezber cümle: "Stacked, %58 daha iyi kalibrasyon karşılığında %8 CRPS bedeli ödüyor — operasyonel kullanım için favorable."
 
 **Etkilenen aşamalar (sadece STAGE-6/8/10):** STAGE-3, 4, 5, 7, 9 dokunulmadı, yeniden çalıştırılmadı.
+
+---
+
+## [27 Mayıs 2026] STAGE-11 — Streamlit Demo (Devam Ediyor)
+
+**Durum:** Çalışır durumda, iki kritik coverage problemi açık. Yarına bırakıldı.
+
+**Dosyalar:** `app/app.py`
+
+### Yapılanlar
+
+İki sekmeli demo geliştirildi:
+- **Sekme 1 (DKASC):** Test seti tahmin bantları + interaktif sensör arıza simülasyonu (G, T_amb, RH için 0-80% slider). Daylight maskesi cos_zenith>0.087.
+- **Sekme 2 (PVOD Station02):** Hiç görülmemiş veri ile genelleme testi. Mono-Si, 17 MW, 38°N Hebei. RH NWP proxy olarak kullanıldı (PVOD'da ölçülmüş RH yok).
+
+### Düzeltilen Hatalar
+
+1. **base_models key uyumsuzluğu:** App kodu `(algo, q)` tuple bekliyordu, dosyada `"lgbm_q01"` string format. `models.base_learners._col_name(algo, q)` ile çözüldü.
+
+2. **CQR k=2.0 v7'de ters etki yapıyor:** Diagnostic çıktısı:
+   - CQR'sız coverage: 0.923 ✓
+   - CQR k=2.0 coverage: 0.258 ✗
+
+   v7 (QuantileLinearBounded) corruption-aware eğitildiği için kendi kalibrasyonu var. CQR k=2.0 orijinal QuantileLinear (Karar 3) için tasarlanmıştı, v7'de geçerli değil. App'ten kaldırıldı, `preds.clip(lower=0.0)` ile alt sınır 0'a sabitleniyor sadece.
+
+3. **PVOD power birimi:** Native birimi MW (max=16.05 MW, capacity=17 MW → %94 CF, plausible). DKASC eğitim verisinde power kW birimindeydi. Station02 yüklenirken `df["power"] *= 1000.0` ile kW'a çevrildi.
+
+### Açık Problemler
+
+**Problem 1 — DKASC coverage 10.1% (kritik):**
+
+Diagnostic koşumu CQR'sız %92.3 coverage gösterdi (5000 satırlık subset). App aynı pipeline ile %10.1 gösteriyor. Bantlar görsel olarak dar, actual sabah/akşam ramplarında bant DIŞINDA.
+
+Olası sebepler:
+- App ilk 4 günü gösteriyor (1152 satır), diagnostic ilk 5000 satırı kullandı (~17 gün). Subset bias olabilir.
+- Streamlit cache eski model state'ini tutuyor olabilir.
+- x_meta sütun sırası diagnostic ile app arasında subtle fark.
+
+Yarın yapılacak: app içinde aynı diagnostic'i ipython prompt'ta yeniden koş, eşleşip eşleşmediğini doğrula. STAGE-8 raporlarındaki coverage 0.72-0.88 idi — burada 0.10 görmek baseline ile uyumsuz, bir yerde bug var.
+
+**Problem 2 — Station02 model tahminleri sıfıra yakın:**
+
+Model DKASC'de 150 kW max çıktısına optimize edildi. Station02 17 MW plant — model 113× daha küçük sistem öğrendi. Sonuç: normalize edince model tahminleri 0.009 max, actual 0.7 max. Bu beklenen zero-shot transfer limitidir ve tezde raporlanabilir bulgu. Pattern fidelity ölçümü (self-normalized comparison) yarına bırakıldı.
+
+### Metrikler Şu An (referans)
+
+DKASC (4 gün, daylight):
+- MAE: 1.75 kW · RMSE: 4.49 kW · Pinball: 0.6724 · Coverage: 10.1% ⚠️
+
+Station02 (4 gün, daylight, kapasiteye normalize):
+- MAE: 0.0607 · RMSE: 0.1537 · Pinball: 0.0299 · Coverage: 16.0% ⚠️
+
+### Yarına Bekleyen Görevler
+
+1. DKASC coverage debug — diagnostic ile app arasındaki uyumsuzluk
+2. Station02 pattern fidelity ölçümü (self-normalized + Pearson r)
+3. App'e baseline karşılaştırma sekmesi (k-NN, SVM, LSTM, TFT — STAGE-9 modelleri)
+4. README ve demo akış senaryosu

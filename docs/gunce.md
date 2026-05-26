@@ -1,11 +1,11 @@
-## [Mayıs 2026] — Strategy A Deneyi Tamamlandı
+## [27 Mayıs 2026] — STAGE-11 Streamlit Demo İlk Sürüm (Açık Problemli)
 
-**>>> DEVAM KOMUTU: Yeni konuşmayı "STAGE-11 Streamlit demo" ile başlat <<<**
+**>>> DEVAM KOMUTU: Yeni konuşmayı "STAGE-11 coverage debug" ile başlat <<<**
 
-Aktif adım    : STAGE-11 Streamlit demo (app/app.py)
+Aktif adım    : STAGE-11 (app/app.py çalışır durumda, coverage problemi var)
 Aktif model   : Sonnet 4.6 / Extended Thinking: kapalı
-Son güncelleme: 26 Mayıs 2026
-Tıkanıklık    : Yok
+Son güncelleme: 27 Mayıs 2026
+Tıkanıklık    : DKASC coverage 10.1% — diagnostic 0.923 dediği halde app gösteremiyor
 
 Kaynak (Projects için): https://raw.githubusercontent.com/arslanburak58/tez-pv/main/docs/gunce.md
 
@@ -19,49 +19,44 @@ Kaynak (Projects için): https://raw.githubusercontent.com/arslanburak58/tez-pv/
 ---
 
 Tamamlanan (bu oturumda):
-- S0–S10 zaten tamamdı (önceki oturum)
-- Strategy A izole deney (`experiment/strategy-a-imputation` branch):
-  * rolling same-hour imputation vs ffill karşılaştırması
-  * SA flag katsayıları: q09_G=+1.0 / q01_G=-1.0 (simetrik — semantik doğru)
-  * SA STAGE-8 ort. ΔCRPS = +2.40%  (v7: +1.44%) — ffill daha iyi performans
-  * T_amb ve RH senaryoları SA ile marginal iyileşti (-0.14%, -0.32%)
-  * Sonuç: H1 iki bağımsız imputation altında doğrulanamadı → yapısal sınır
-- methodology_decisions.md Karar 8 eklendi (Strategy A deneyi + tez paragrafı)
-- Tüm çıktılar experiments/strategy_a/ altında, main dokunulmadı
+- app/app.py oluşturuldu — iki sekmeli Streamlit demo
+- Sekme 1: DKASC Alice Springs test seti + sensör arıza simülasyonu sliderları
+- Sekme 2: PVOD Station02 (Mono-Si, 17 MW, Hebei) — eğitime hiç girmemiş veri ile genelleme testi
+- station02 seçim gerekçesi: tek Mono-Si istasyon, 38°N enlem (DKASC 23.7°S), %94 capacity factor
 
-Strategy A STAGE-8 özeti (rolling imputation):
-- Rnd G %10: +1.40% | Rnd G %30: +3.54% | Rnd G %50: +4.98%
-- Burst G 1h: +3.47% | Burst G 6h: +2.88% | Burst G 24h: +3.18%
-- Rnd T_amb %30: -0.14% | Rnd RH %30: -0.32%
-- Ortalama: +2.40%, flags iyileştirdi: 2/9, DM anlamlı: 9/9
+Düzeltilen hatalar:
+- base_models key formatı: tuple (algo, q) değil, string ("lgbm_q01" vb.) — _col_name() ile çözüldü
+- CQR k=2.0 v7 modelde ters çalışıyor — diagnostic gösterdi (0.923 → 0.258), kaldırıldı
+- station02 power MB birimi — kW'a çevrildi (×1000)
 
-Açık görevler:
-- STAGE-11: Streamlit demo (app/app.py)
-  * Günlük tahmin görselleştirme (q01/q05/q09 bantlar)
-  * Sensör bayrak simülasyonu (interaktif slider)
-  * v7 modeli kullan
-- STAGE-12: Tez yazımı (Yöntem + Bulgular bölümleri)
-- STAGE-13: SCI/SCI-E makale taslağı
+Açık problemler (yarın çözülecek):
 
-Metodoloji notu (savunmaya hazır):
-- v7 = "corruption-aware training (v5: burst+random aug) + QuantileLinearBounded (flag_bound=1.0)"
-- H1 yorumu: İki imputation stratejisi (ffill ve rolling) altında da H1 doğrulanamadı.
-  Flag-tabanlı meta müdahalesi gradient boosting + iyi imputation çiftinde yapısal olarak sınırlı.
-  Coverage stabilizasyonu gerçek katkı olarak kalmaktadır.
-- Karar 8: methodology_decisions.md'de belgelenmiş, danışman toplantısına hazır.
+1. **DKASC coverage 10.1% — kritik**
+   - Diagnostic koşumunda ilk 5000 satırda coverage 0.923 (CQR'sız)
+   - App'te aynı pipeline ile coverage 10.1%
+   - Pinball iyileşti (0.7122 → 0.6724) ama coverage kötüleşti
+   - Görsel olarak bantlar dar, actual sabah/akşam ramplarında bant DIŞINDA
+   - Hipotezler (yarın test edilecek):
+     a) App ilk 4 günü gösteriyor — diagnostic 5000 satır (~17 gün) kullandı, alt küme farkı
+     b) x_meta sütun sırası diagnostic ile app arasında farklı olabilir
+     c) Streamlit cache eski model state'ini tutuyor olabilir
+   - Eylem: app içinde aynı diagnostic'i koştur, çıktıyı app'inkiyle karşılaştır
 
-Checkpoints (main):
-- data/processed/meta_models_robust_v7.joblib  ← AKTİF
-- data/processed/meta_models_robust_v2.joblib  ← referans (eski)
-- figures/robustness_v7_*.png/pdf              ← STAGE-8 görselleri
-
-Checkpoints (Strategy A — experiment branch):
-- experiments/strategy_a/models/meta_models_robust_sa.joblib
-- experiments/strategy_a/models/base_models_sa.joblib
-- experiments/strategy_a/data/stage8_results_sa.joblib
-- experiments/strategy_a/figures/sa_crps_bar.png/pdf
+2. **Station02 model tahminleri ~0**
+   - Model DKASC skalasında (0-150 kW) eğitildi
+   - Station02 17 MW plant — model 113x daha küçük sistem öğrendi
+   - Normalize edince model tahminleri 0.009 max, actual 0.7 max
+   - Bu beklenen zero-shot transfer limiti (rapor edilebilir bulgu)
+   - Ama bant ÇOK dar (q01≈q50≈q09 hepsi 0 civarı)
+   - Eylem: Pattern korelasyonunu ölç (model şekli yakalıyor mu) — tahmini ve actual'ı kendi tepelerine göre normalize edip karşılaştır
 
 Sistem:
 - claude.ai Projects → düşünme, yazım, karar
 - Claude Code (terminal) → çalıştırma, git, dosya
 - Makefile komutları: make help ile listele
+
+Checkpoints (main):
+- data/processed/meta_models_robust_v7.joblib  ← AKTİF
+- data/processed/base_models.joblib            ← string keys (lgbm_q01 vb.)
+- data/processed/dataset.joblib                ← X_test, y_test, feature_cols (15)
+- app/app.py                                   ← STAGE-11 demo (coverage problemli)
