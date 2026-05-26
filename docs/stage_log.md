@@ -330,6 +330,74 @@ Sonuç: **Flag L2 normu 0.003 (v1) → 5.34 (v2) — 1300× artış**. Smoke tes
 
 9 senaryo (random %10/20/30/50 + burst 1/6/24sa + sensor-specific G/T_amb/RH). Holm-Bonferroni düzeltmesi 9 DM testi üzerinde uygulanıyor. Süre tahmini 45 dakika.
 
+---
+
+## STAGE-8 v7 — Robustness Testleri Final Sonuçları
+
+**Tarih:** 2026-05-26  
+**Commit:** `69eb5ee` — `STAGE-8: meta_robust_v7 (QuantileLinearBounded + burst-aug) — 9/9 DM, avg +1.44%`  
+**Aktif model:** `data/processed/meta_models_robust_v7.joblib`
+
+Augmentation (v5): tek-sensör random %30 (rate Uniform 0.10-0.50) + burst tek-sensör %20 (1/6/24 saat) + clean %50.  
+Meta: QuantileLinearBounded — flag katsayıları [-1.0, +1.0] box constraint, base katsayılar serbest.
+
+| Senaryo | ΔCRPS% | Coverage |
+|---|---|---|
+| Rnd G %10 | +0.95% | 0.817 |
+| Rnd G %20 | +1.87% | 0.832 |
+| Rnd G %30 | +2.92% | 0.848 |
+| Rnd G %50 | +4.99% | 0.880 |
+| Burst G 1h | +2.35% | 0.843 |
+| Burst G 6h | -0.09% | 0.794 |
+| Burst G 24h | -0.79% | 0.720 |
+| Rnd T_amb %30 | +1.18% | 0.812 |
+| Rnd RH %30 | -0.44% | 0.777 |
+| **Ortalama** | **+1.44%** | **0.72–0.88** |
+
+DM testi: **9/9 anlamlı** (Holm-Bonferroni düzeltmeli, p < 0.001).  
+H1 sonucu: **doğrulanmadı** (ortalama CRPS yükseldi). Gerçek katkı: coverage stability (tüm senaryolarda %72–88 nominal hedef korundu).
+
+---
+
+## STAGE-10 — Karşılaştırmalı Analiz Final Sonuçları
+
+**Tarih:** 2026-05-26  
+**Dosyalar:** `evaluation/cqr.py`, `figures/robustness_v7_*.png/pdf`
+
+| Model | CRPS | Coverage |
+|---|---|---|
+| Stacked (CQR k=2.0) | 0.738 | 0.842 |
+| TFT (kalibre edilmemiş) | 0.681 | 0.533 |
+| k-NN | 0.582 | 0.266 |
+
+Daylight filter: `cos_zenith > 0.087`. CQR k=2.0 empirical (val/test temporal shift nedeniyle teorik CQR yetersiz kaldı).  
+Stacked, %58 daha iyi kalibrasyon karşılığında TFT'ye göre %8 CRPS bedeli ödüyor — operasyonel kullanımda favorable.
+
+---
+
+## Strategy A Deneyi — Imputation Karşılaştırması
+
+**Tarih:** 2026-05-26  
+**Commit:** `fea4391` — `DOC: Strategy A deneyi sonuçları — Karar 8 eklendi`  
+**Branch:** `experiment/strategy-a-imputation` (main dokunulmadı)  
+**Çıktılar:** `experiments/strategy_a/`
+
+Rolling same-hour mean imputation (son 7 gün aynı saat ortalaması, fallback 30 gün) ile ffill karşılaştırması.
+
+| Senaryo | v7 (ffill) ΔCRPS | SA (rolling) ΔCRPS |
+|---|---|---|
+| Rnd G %10 | +0.95% | +1.40% |
+| Rnd G %30 | +2.92% | +3.54% |
+| Rnd G %50 | +4.99% | +4.98% |
+| Burst G 1h | +2.35% | +3.47% |
+| Rnd T_amb %30 | +1.18% | -0.14% |
+| Rnd RH %30 | -0.44% | -0.32% |
+| **Ortalama** | **+1.44%** | **+2.40%** |
+
+Sonuç: H1 iki bağımsız imputation stratejisi altında doğrulanamadı. Flag katsayıları SA'da semantik olarak doğru (simetrik q09/q01) ama CRPS iyileşmedi. İyi imputation → base preds zaten iyi → flag müdahalesi gereksiz bant genişletmesi yapıyor → yapısal sınır. Tez bulgularını güçlendiriyor (Karar 8, methodology_decisions.md).
+
+---
+
 ### Notlar (Burak için bırakılan)
 
 **Geç farkındalık:** Augmentation tasarımında flag toggle ≠ realistic robust training. Bu öğrenildi. v2 doğru yol. Tez metni v2 yaklaşımını anlatacak, v1 yan hata olarak rapor edilmeyecek (sadece methodology_decisions.md'de iç kayıt).

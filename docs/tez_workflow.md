@@ -499,7 +499,7 @@ git commit -m "STAGE-5: 9 taban model eğitildi, OOF pinball raporlandı"
 **Augmentation stratejisi notu:**
 - Augmentation strategy: corruption-aware (gerçek base predictions üzerinde imputation sonrası bozulma simülasyonu).
 - v1 (naive flag toggle) yaklaşımı denendi, başarısız oldu — methodology_decisions.md Karar 4'e bakınız.
-- Kullanılacak model: meta_models_robust_v2.joblib (corruption-aware eğitilmiş).
+- Kullanılacak model: meta_models_robust_v7.joblib (QuantileLinearBounded + burst-aug v5, AKTİF).
 
 **Tamamlandı ölçütü:**
 - 9 senaryo (3 eksen × 3 seviye) tamamlanmış sonuçlu.

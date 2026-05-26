@@ -13,8 +13,8 @@
 
 ### Model
 - **Seviye 0:** XGBoost + LightGBM + CatBoost × q={0.1, 0.5, 0.9} → 9 taban akış
-- **Seviye 1:** Ridge × 3 meta-model | girdi: 9 OOF tahmin + 4 missingness flag = 13 özellik
-- **Missingness flags (meta-katmanda):** is_G_missing, is_Tamb_missing, is_RH_missing, is_wind_missing
+- **Seviye 1:** QuantileLinearBounded × 3 meta-model (pinball + L2, scipy L-BFGS-B, flag_bound=1.0) | girdi: 9 OOF tahmin + 3 missingness flag = 12 özellik
+- **Missingness flags (meta-katmanda):** is_G_missing, is_Tamb_missing, is_RH_missing
 
 ### Fiziksel öznitelikler (pvlib tabanlı)
 - cos(θ_z), saat-açısı, air mass, k_t = G/G₀, T_cell = T_amb + G·(NOCT-20)/800
@@ -60,17 +60,17 @@ Missingness flags → meta-öğreniciye eklenince CRPS istatistiksel anlamlı d�
 | Stage | Adım | Durum |
 |-------|------|-------|
 | S0 | Setup | ✓ tamamlandı |
-| S1 | Literatür sindirimi | ✓ neredeyse (günce'ye bak) |
-| S2 | Veri temini | ⏳ |
-| S3 | Fiziksel öznitelik pipeline | ⏳ |
-| S4 | Veri bölme + Walk-Forward | ⏳ |
-| S5 | Taban öğreniciler (9 model) | ⏳ |
-| S6 | Meta-öğrenici + missingness flags | ⏳ |
-| S7 | Optuna optimizasyon | ⏳ |
-| S8 | Robustness testleri | ⏳ |
-| S9 | Baseline modeller | ⏳ |
-| S10 | Karşılaştırmalı analiz | ⏳ |
-| S11 | Streamlit demo | ⏳ |
+| S1 | Literatür sindirimi | ✓ tamamlandı |
+| S2 | Veri temini (DKASC + PVOD EDA) | ✓ tamamlandı |
+| S3 | Fiziksel öznitelik pipeline | ✓ tamamlandı |
+| S4 | Veri bölme + Walk-Forward | ✓ tamamlandı |
+| S5 | Taban öğreniciler (9 model) | ✓ tamamlandı |
+| S6 | Meta-öğrenici (QuantileLinearBounded) + flags | ✓ tamamlandı |
+| S7 | Optuna optimizasyon | ✓ tamamlandı |
+| S8 | Robustness testleri (v7, 9/9 DM) | ✓ tamamlandı |
+| S9 | Baseline modeller | ✓ tamamlandı |
+| S10 | Karşılaştırmalı analiz (daylight + CQR k=2.0) | ✓ tamamlandı |
+| S11 | Streamlit demo | ⏳ aktif |
 | S12 | Tez yazımı | ⏳ |
 | S13 | Makale taslağı | ⏳ |
 
