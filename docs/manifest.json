@@ -61,16 +61,18 @@
       "dm_significant": "9/9",
       "flags_improved_crps": "3/9",
       "avg_delta_crps_pct": 1.44,
+      "burst_positive": true,
       "rnd_G_30pct_delta": 2.92,
+      "burst_G_6h_delta": -0.09,
       "burst_G_24h_delta": -0.79,
-      "coverage_range": "0.72-0.88"
+      "coverage_range": [0.72, 0.88]
     }
   },
   "stages": {
     "S0": "done", "S1": "done", "S2": "done", "S3": "done",
     "S4": "done", "S5": "done", "S6": "done (v7: QuantileLinearBounded)",
     "S7": "done",
-    "S8": "done (v7, 9/9 DM, avg +1.44%)",
+    "S8": "done (v7: bounded + burst augmentation, 9/9 DM, avg +1.44%)",
     "S9": "done",
     "S10": "done (daylight + CQR k=2.0)",
     "S11": "pending", "S12": "pending", "S13": "pending"

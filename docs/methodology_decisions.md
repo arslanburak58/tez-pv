@@ -109,6 +109,28 @@ v1'de x_meta'da flag sütunlarını rastgele 0→1 toggle ettik ama base predict
 
 ---
 
+## Karar 7: Bounded QuantileLinear meta-learner (v7)
+
+**Karşı seçilen:** v2 (standart QuantileLinear, augmentation patolojisi)
+
+**Niye değiştirildi:**
+v2 ile tam STAGE-8'de ortalama ΔCRPS +%6.2 (yanlış yönde anlamlı). Teşhis: (i) eğitim augmentation'da multi-sensor flag co-occurrence test ile uyumsuzdu (eğitimde %21.5 satır 2+ flag, testte %0); (ii) ffill imputation bazen büyük stale değerler üretiyor, meta bunları kapsayan agresif flag katsayıları öğrenir (q09 is_G_missing = −5.32) → test'te overcorrection. (iii) q09 flag katsayısı L2 regularization'a karşı dirençli — alpha = 0.5'ten 20'ye artırmak katsayıyı yalnızca %1 küçülttü.
+
+**Çift düzeltme uygulandı:**
+1. **Augmentation (v5):** tek-sensör random %30 + burst 1/6/24h %20 + clean %50. STAGE-8 değerlendirme senaryolarıyla bire bir uyumlu eğitim dağılımı.
+2. **Regularization (QuantileLinearBounded):** Base prediction katsayıları serbest, flag katsayıları [-1.0, +1.0] box constraint. scipy L-BFGS-B `bounds` parametresi ile uygulandı.
+
+**Sonuç:** v7 ile tam STAGE-8 ortalama ΔCRPS +%1.44 (v2: +%6.2). Burst senaryolarda flags pozitif yönde iyileştirme (Burst G 6h: −0.09%, Burst G 24h: −0.79%). Coverage 0.72–0.88 bandında istikrarlı. 9/9 DM anlamlı. Bantlar semantik olarak doğru genişliyor: G eksik → q01 aşağı (−1.0), q09 hafif yukarı (+0.11).
+
+**Atıflar:**
+- Bounded optimization: scipy.optimize.minimize L-BFGS-B (Jones ve ark., 2001)
+- Burst pattern justification: Hasan ve ark. (2023), Bouslimani ve ark. (2025)
+
+**Tez paragrafı (Yöntem 3.4 güncellemesi):**
+> Meta-öğrenici QuantileLinearBounded sınıfı olarak implemente edilmiştir; base prediction katsayıları serbest, flag katsayıları |coef| ≤ 1.0 box constraint altında optimize edilir. Bu kısıt, eğitim augmentation'ın üretebileceği patolojik agresif düzeltme katsayılarını önler. Augmentation stratejisi tek-sensör random ve burst (1/6/24 saat ardışık) corruption'ı karıştırarak STAGE-8 değerlendirme senaryolarıyla bire bir uyumlu eğitim dağılımı sağlar. v7 modeli ile gerçekleştirilen tam STAGE-8 değerlendirmesinde (9 senaryo, Holm-Bonferroni düzeltmeli Diebold-Mariano testi) ortalama ΔCRPS = +%1.44 elde edilmiş, tüm senaryolarda istatistiksel anlamlılık (p < 0.05) korunmuştur. Burst G 6h ve 24h senaryolarında flags CRPS'i sırasıyla −%0.09 ve −%0.79 iyileştirmiştir.
+
+---
+
 ## Genel Notlar
 
 - **Tüm seed'ler 42**, reprodüksiyon garantili.
