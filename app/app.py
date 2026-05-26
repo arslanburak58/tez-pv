@@ -171,14 +171,14 @@ def run_inference(
     # 2. Flags ekle
     x_meta_enriched = enrich_x_meta(x_meta, flags)
 
-    # 3. Meta tahmin + CQR
+    # 3. Meta tahmin
     raw = predict_intervals(meta_models, x_meta_enriched)
     preds = pd.DataFrame({
         "q_0.1": raw["meta_q01"],
         "q_0.5": raw["meta_q05"],
         "q_0.9": raw["meta_q09"],
     }, index=X.index)
-    return apply_cqr(preds)
+    return preds.clip(lower=0.0)
 
 
 def compute_metrics(actual: pd.Series, preds: pd.DataFrame) -> dict[str, float]:
