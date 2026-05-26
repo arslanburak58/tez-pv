@@ -164,7 +164,7 @@ def run_inference(
     for algo in ALGOS:
         for q in QUANTILES:
             col   = _col_name(algo, q)
-            model = base_models[(algo, q)]
+            model = base_models[col]
             meta_cols[col] = model.predict(X[FEATURE_COLS])
     x_meta = pd.DataFrame(meta_cols, index=X.index)
 
@@ -172,7 +172,12 @@ def run_inference(
     x_meta_enriched = enrich_x_meta(x_meta, flags)
 
     # 3. Meta tahmin + CQR
-    preds = predict_intervals(meta_models, x_meta_enriched)
+    raw = predict_intervals(meta_models, x_meta_enriched)
+    preds = pd.DataFrame({
+        "q_0.1": raw["meta_q01"],
+        "q_0.5": raw["meta_q05"],
+        "q_0.9": raw["meta_q09"],
+    }, index=X.index)
     return apply_cqr(preds)
 
 
@@ -341,7 +346,7 @@ def main() -> None:
             phys      = build_physical_features(df_imp, S02_LOC)
 
             X_s02 = pd.concat(
-                [df_imp[["T_amb", "RH", "G"]], phys, flags_s02],
+                [phys, flags_s02],
                 axis=1,
             )[FEATURE_COLS]
 
