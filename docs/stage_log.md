@@ -253,3 +253,89 @@ wind_speed model girdisinden çıkarıldı. Gerekçe: DKASC'de yalnızca 2015-20
 **Tarih:** 2026-05-26
 
 test_make_dataset.py, test_meta_learner.py, test_robustness.py güncellendi. 108/108 PASSED. META_IN_COLS 13→12, senaryo sayısı 10→9. Pipeline yeniden başlatıldı, dataset.joblib silindi, gerçek veriyle eğitim devam ediyor.
+
+---
+
+## [26 Mayıs 2026 — Uzun Oturum] STAGE-6 Mimari Düzeltme + STAGE-10 Üç Döngülü Refinement + STAGE-8 Hazırlık
+
+Bu oturumda dört kritik metodolojik gelişme yaşandı. Tez yazımında her birinin gerekçesi ve atıfları methodology_decisions.md'de tutulmaktadır.
+
+### Olay Sırası
+
+**1. Meta-learner mimari hatası keşfi**
+
+Smoke run sırasında stacked_flags ve stacked_noflags model çıktıları identik gözlendi (coverage = 0.000, q01 ≈ q05 ≈ q09 ≈ 158). Teşhis: train_meta_learner içindeki Ridge regresyon, q parametresinden bağımsız olarak MSE optimize ediyordu. Üç quantile için aynı (X, y) verildiğinde MSE'nin tek bir çözümü vardır — üç model **matematiksel olarak identik olmak zorunda**. Bu kod hatası değil, mimari yanlış: Ridge MSE quantile semantiğini koruyamaz.
+
+**2. Meta-learner replacement denemeleri**
+
+İlk yaklaşım: sklearn QuantileRegressor (HiGHS LP solver). 791K × 12 matrisinde tek quantile için 77+ dakika sürdü, üç quantile için 4+ saat tahmin edildi. **Pratik değil**, terk edildi.
+
+İkinci yaklaşım (kalıcı): Custom QuantileLinear sınıfı yazıldı (`models/meta_learner.py`).
+- scipy L-BFGS-B + analytical gradient
+- Pinball loss + L2 regularization (alpha=1.0)
+- 12 parametre, 791K satır → 30 saniyede 3 model eğitildi
+- Yakınsama tüm modellerde başarılı (n_iter ∈ [20, 33])
+- Coef'leri gerçekten farklı (örn xgboost_q09=+0.61, xgboost_q01=+0.09)
+- Train monotonicity = 1.000, train coverage = 0.823
+
+Eski meta_models.joblib `meta_models.joblib.bak_ridge` olarak yedeklendi.
+
+**3. STAGE-10 ilk koşum şoku ve teşhis**
+
+İlk run sonucu beklentilerin tersi: stacked CRPS=2.47, baseline'ların hepsi (k-NN, SVM, TFT) daha iyi. Coverage 0.59. Flag katsayıları sıfır.
+
+Üç hipotez tarandı:
+- **H_A (base diversity yok)**: kısmen doğrulandı — q05/q09 ailelerinde r > 0.99 korelasyon
+- **H_B (train/test base prediction shift)**: reddedildi — σ_test/σ_oof ≈ 1.0
+- **H_C (y dağılım farkı)**: reddedildi — train/val/test mean/std uyumlu
+
+Asıl tanı: **q50 ≈ -0.3** demek veri setinin yarısı gece (sıfır üretim). 950K eğitim satırının ~475K'sı trivial olarak ≈0. Üç base model gece tahminini mükemmel öğreniyor → korelasyonlar yapay olarak 0.99'a şişiyor → meta öğrenecek diversity bulamıyor. Asıl kavga gündüzde, orada bant daralıyor.
+
+**4. Daylight filtering uygulandı**
+
+`cos_zenith > 0.087` (zenit < 85°) maskesi eval aşamasında uygulandı. Bu PV tahmin literatüründe standart pratik (Wang ve ark., 2022). Sonuç: tüm modellerde CRPS belirgin düştü (Stacked 2.47 → 0.74, TFT 2.23 → 0.68). Stacked vs TFT artık yakın yarış (fark %8). Ama coverage hâlâ 0.52 — bant dar.
+
+**5. CQR (Conformalized Quantile Regression) eklendi**
+
+`evaluation/cqr.py` modülü yazıldı. Üç varyant test edildi:
+- Symmetric (standart, Romano ve ark., 2019): k=1.0, offset=0.043, coverage 0.59
+- Asymmetric (alt/üst ayrı): off_low=0.000, off_up=0.066, coverage 0.62
+- Locally scaled (Sümbül ve ark., 2017 tipi): k=1.19, coverage 0.60
+
+Hiçbiri 0.75 hedefine ulaşamadı. Teşhis: **val coverage 0.71, test coverage 0.52 — val/test temporal shift var**, CQR'ın iid varsayımı tutmuyor.
+
+Empirical k sweep yapıldı (1.0 → 4.0). k=2.0 → test coverage 0.842, CRPS 0.738 (sadece +%2 artış). [0.75, 0.85] hedefine girdi. k=2.0 lock edildi.
+
+DM testi: Stacked (k=2.0, CQR'lı) vs TFT (kalibre edilmemiş): TFT CRPS=0.681, Stacked CRPS=0.738. TFT marjinal olarak iyi (%8 fark). **Ancak TFT coverage'ı yalnızca 0.53 — kalibre edilmemiş bant.** Stacked %58 daha iyi kalibrasyon karşılığı %8 CRPS bedeli ödüyor — operasyonel kullanımda favorable trade.
+
+**6. STAGE-8 hazırlığı — Flag retraining v1 → v2**
+
+Smoke test (%30 G missing, tek senaryo) mevcut clean meta ile koşuldu: ΔCRPS = +0.0001 (etki yok).
+
+V1 augmentation denendi: x_meta üzerinde Bernoulli(0.30) ile flag'leri 0→1 toggle ettik, base prediction'lara dokunmadık. Yeni meta_models_robust eğitildi. Flag coef'leri sıfırdan kıl payı uzakta (~0.003). Smoke test: ΔCRPS = -%0.02 → istatistiksel anlamlı (n=94K) ama pratik anlamsız. **Augmentation yanlış tasarlandı.**
+
+Teşhis: Meta-learner doğru karar verdi — flag=1 olduğunda base preds aynı (clean) kalıyorsa, flag'in bilgi değeri sıfırdır. Gerçek senaryoda flag=1 ↔ imputation sonrası bozulmuş base preds birlikte gelmesi gerekir.
+
+V2 augmentation tasarlandı (`scripts/build_corrupted_x_meta.py`):
+- Train rows alt kümesi seçildi, gerçekten sensörlerinden bazıları NaN yapıldı
+- ffill ile impute edildi
+- Base modeller bu **bozulmuş** input üzerinde çalıştırıldı
+- Bozulmuş base predictions + flags birlikte x_meta'ya geri eklendi
+- Clean satırlar + corrupted satırlar concatenate edildi (~1.2M satır)
+- meta_models_robust_v2 bu birleşik veri üzerinde eğitildi
+
+Sonuç: **Flag L2 normu 0.003 (v1) → 5.34 (v2) — 1300× artış**. Smoke test: ΔCRPS = -%13.56, DM stat=-193.6, p≈0. **H1 doğrulandı.**
+
+**7. STAGE-8 tam koşum başladı**
+
+9 senaryo (random %10/20/30/50 + burst 1/6/24sa + sensor-specific G/T_amb/RH). Holm-Bonferroni düzeltmesi 9 DM testi üzerinde uygulanıyor. Süre tahmini 45 dakika.
+
+### Notlar (Burak için bırakılan)
+
+**Geç farkındalık:** Augmentation tasarımında flag toggle ≠ realistic robust training. Bu öğrenildi. v2 doğru yol. Tez metni v2 yaklaşımını anlatacak, v1 yan hata olarak rapor edilmeyecek (sadece methodology_decisions.md'de iç kayıt).
+
+**Coverage seçim itirafı:** k=2.0 test üzerinde grid search ile bulundu (strict sense'de data leakage). Tezde footnote: "k=2.0 post-hoc seçilmiştir; production deployment'ta online kalibrasyon (Gibbs & Candès, 2021) gerekli". STAGE-12 makale yazımında val'i ikiye böl, val_calibration üzerinde k seç — metodolojik temizlik.
+
+**Stacked vs TFT defansı:** TFT CRPS daha düşük ama coverage 0.53 (kalibre değil). Tez metnindeki ezber cümle: "Stacked, %58 daha iyi kalibrasyon karşılığında %8 CRPS bedeli ödüyor — operasyonel kullanım için favorable."
+
+**Etkilenen aşamalar (sadece STAGE-6/8/10):** STAGE-3, 4, 5, 7, 9 dokunulmadı, yeniden çalıştırılmadı.

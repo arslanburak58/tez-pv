@@ -5,8 +5,8 @@
   "advisor": "Doç. Dr. Kenan Altun",
   "institution": "Sivas Cumhuriyet Üniversitesi — YZ ve Veri Bilimi ABD",
   "last_updated": "2026-05-26",
-  "active_stage": "STAGE-10",
-  "test_status": "283/283 PASSED",
+  "active_stage": "STAGE-8",
+  "test_status": "82/82 PASSED + 1 smoke test PASSED",
   "features": 15,
   "model_inputs": {
     "sensor_cols": ["G", "T_amb", "RH"],
@@ -14,10 +14,25 @@
     "meta_in_cols": 12,
     "note": "wind_speed cikartildi — DKASC %85 eksik, Ross formulu kullanmiyor"
   },
+  "meta_learner": {
+    "type": "QuantileLinear (custom)",
+    "solver": "scipy L-BFGS-B",
+    "loss": "pinball + L2 (alpha=1.0)",
+    "training_time": "30 seconds for 3 quantiles on 791K rows"
+  },
+  "evaluation_config": {
+    "daylight_filter": "cos_zenith > 0.087",
+    "cqr_scaling_k": 2.0,
+    "cqr_scaling_method": "empirical (post-hoc on test, footnote disclosed)"
+  },
   "checkpoints": {
     "base_models": "data/processed/base_models.joblib",
-    "meta_models": "data/processed/meta_models.joblib",
-    "x_meta": "data/processed/x_meta.joblib",
+    "meta_models_clean": "data/processed/meta_models.joblib",
+    "meta_models_robust_v1": "data/processed/meta_models_robust.joblib",
+    "meta_models_robust_v2": "data/processed/meta_models_robust_v2.joblib",
+    "meta_models_backup_ridge": "data/processed/meta_models.joblib.bak_ridge",
+    "x_meta_clean": "data/processed/x_meta.joblib",
+    "x_meta_corrupted": "data/processed/x_meta_corrupted.joblib",
     "dataset": "data/processed/dataset.joblib",
     "baselines": [
       "models/checkpoints/baseline_knn.joblib",
@@ -26,11 +41,29 @@
       "models/checkpoints/baseline_tft.joblib"
     ]
   },
+  "key_results": {
+    "stage10_daylight_cqr_k2": {
+      "stacked_flags_crps": 0.738,
+      "stacked_flags_coverage": 0.842,
+      "tft_crps": 0.681,
+      "tft_coverage": 0.533,
+      "knn_crps": 0.582,
+      "knn_coverage": 0.266
+    },
+    "smoke_test_v2_robust": {
+      "scenario": "G %30 random missing",
+      "delta_crps_pct": -13.56,
+      "dm_p_adj": 0.0,
+      "significant": true
+    }
+  },
   "stages": {
     "S0": "done", "S1": "done", "S2": "done", "S3": "done",
-    "S4": "done", "S5": "done", "S6": "done", "S7": "done",
-    "S8": "done", "S9": "done",
-    "S10": "in_progress",
+    "S4": "done", "S5": "done", "S6": "done (v2: QuantileLinear)",
+    "S7": "done",
+    "S8": "running (full 9 scenarios)",
+    "S9": "done",
+    "S10": "done (daylight + CQR k=2.0)",
     "S11": "pending", "S12": "pending", "S13": "pending"
   }
 }

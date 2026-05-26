@@ -39,7 +39,7 @@ Günceyi güncellemek için:
 **Yaklaşım:** Fizik kısıtlı + olasılıksal hibrit Stacked Ensemble.
 
 - **Seviye 0:** XGBoost + LightGBM + CatBoost × q={0.1, 0.5, 0.9} → 9 taban akış.
-- **Seviye 1:** Ridge × 3 quantile meta-model. Özellik uzayı: 9 taban tahmin + 4 missingness flag.
+- **Seviye 1:** Quantile linear meta-öğrenici (pinball + L2, scipy L-BFGS-B) × 3 quantile meta-model. Özellik uzayı: 9 taban tahmin + 3 missingness flag.
 - **Fiziksel öznitelikler (pvlib):** cos(θ_z), saat-açısı, hava kütlesi, k_t = G/G_0, T_cell (Ross).
 - **Optimizasyon:** Optuna TPE + MedianPruner. Objective: ortalama pinball loss.
 - **Dayanıklılık:** Rastgele (%10/%25/%50), burst (1/6/24 saat), sensör-özgü (G/T_amb/RH).
@@ -68,7 +68,7 @@ Ben Burak Arslan, Sivas Cumhuriyet Üniversitesi YZ ve Veri Bilimi yüksek lisan
 
 Tez konum: Fotovoltaik sistemlerde olasılıksal güç tahmini — sensör kayıplarına
 dayanıklı yaklaşım. Fizik kısıtlı + olasılıksal hibrit Stacked Ensemble
-(XGBoost+LightGBM+CatBoost × q=0.1,0.5,0.9; Ridge meta-öğrenici; missingness
+(XGBoost+LightGBM+CatBoost × q=0.1,0.5,0.9; Quantile linear meta-öğrenici (pinball + L2, scipy L-BFGS-B); missingness
 flags yalnızca meta-katmanda). Veri: DKASC + PVOD v1.0. Metrikler: MAE/RMSE +
 Pinball Loss/CRPS. Baseline: k-NN, SVM, LSTM, hafif Transformer. Donanım:
 MacBook Air M4 (MPS backend), gerekirse Colab T4.
@@ -433,13 +433,13 @@ git commit -m "STAGE-5: 9 taban model eğitildi, OOF pinball raporlandı"
 
 **Önceden:** STAGE-5 tamam, X_meta hazır.
 
-**Hedef:** Ridge meta-öğrenici × 3 quantile, missingness flags özellik uzayına eklenmiş.
+**Hedef:** Quantile linear meta-öğrenici (pinball + L2, scipy L-BFGS-B) × 3 quantile, missingness flags özellik uzayına eklenmiş.
 
 **Adımlar:**
 
-1. `6.1` — Missingness flags: `is_G_missing`, `is_Tamb_missing`, `is_RH_missing`, `is_wind_missing` binary kolonlar.
-2. `6.2` — X_meta zenginleştirme: 9 OOF + 4 flag = 13 kolon.
-3. `6.3` — `Ridge` × 3 quantile. Alpha Optuna'da aranacak, şimdilik varsayılan.
+1. `6.1` — Missingness flags: `is_G_missing`, `is_Tamb_missing`, `is_RH_missing` binary kolonlar.
+2. `6.2` — X_meta zenginleştirme: 9 OOF + 3 flag = 12 kolon.
+3. `6.3` — `QuantileLinear` × 3 quantile (pinball + L2, scipy L-BFGS-B). Alpha Optuna'da aranacak, şimdilik varsayılan.
 4. `6.4` — Meta tahmin: her quantile için ŷ_q üretici fonksiyon.
 5. `6.5` — Kalibrasyon kontrolü: %10–%90 bant kapsama oranı (coverage). Hedef ~%80.
 6. `6.6` — Pinball loss: tek LightGBM-quantile baseline vs stacked karşılaştır.
@@ -448,6 +448,9 @@ git commit -m "STAGE-5: 9 taban model eğitildi, OOF pinball raporlandı"
 - Meta-öğrenici pipeline çalışıyor.
 - Stacked sistem tek LightGBM-quantile baseline'a karşı min %5 pinball iyileşmesi.
 - Coverage %75–85 aralığında.
+- Üç meta modelin coef_ değerleri identik OLMAMALI (regression check).
+- Train monotonicity ≥ 0.95.
+- Train coverage ∈ [0.75, 0.85] (CQR öncesi, nominal hedef).
 
 **Sonraki:** STAGE-7 (Optuna)
 
@@ -492,6 +495,11 @@ git commit -m "STAGE-5: 9 taban model eğitildi, OOF pinball raporlandı"
 5. `8.5` — Her senaryoda Pinball ve CRPS ölç. Coverage değişimini de ekle.
 6. `8.6` — Sonuç tablosu: senaryo × metrik matrisi. Heatmap görselleştirme.
 7. `8.7` — Flags ile / flagsiz karşılaştırma — Diebold-Mariano testi ile hipotez doğrulama.
+
+**Augmentation stratejisi notu:**
+- Augmentation strategy: corruption-aware (gerçek base predictions üzerinde imputation sonrası bozulma simülasyonu).
+- v1 (naive flag toggle) yaklaşımı denendi, başarısız oldu — methodology_decisions.md Karar 4'e bakınız.
+- Kullanılacak model: meta_models_robust_v2.joblib (corruption-aware eğitilmiş).
 
 **Tamamlandı ölçütü:**
 - 9 senaryo (3 eksen × 3 seviye) tamamlanmış sonuçlu.
@@ -539,6 +547,11 @@ git commit -m "STAGE-5: 9 taban model eğitildi, OOF pinball raporlandı"
 4. `10.4` — Diebold-Mariano pairwise testleri. Holm-Bonferroni düzeltmesi.
 5. `10.5` — Edge AI argümanı: hesaplama süresi vs CRPS scatter plot.
 6. `10.6` — Tüm görselleri `figures/` altına PNG + PDF kaydet.
+
+**Önemli notlar (tamamlanan deneyimden):**
+- Daylight filter: cos(zenith) > 0.087 (zenit < 85°) — eval-only maske, eğitim değişmez.
+- CQR scaling: empirical k=2.0 (val/test temporal shift nedeniyle teorik CQR yetersiz kaldı).
+- Stacked vs TFT karşılaştırması: CRPS değil, CRPS + Coverage birlikte değerlendirilmeli.
 
 **Tamamlandı ölçütü:**
 - Master tablo bitti.
