@@ -5,8 +5,6 @@ import random
 import numpy as np
 import pandas as pd
 import pytest
-from sklearn.linear_model import Ridge
-
 random.seed(42)
 np.random.seed(42)
 
@@ -14,7 +12,9 @@ from models.base_learners import META_COLS, build_x_meta
 from models.meta_learner import (
     FLAG_COLS,
     META_IN_COLS,
+    QuantileLinear,
     _meta_key,
+    _q_cols,
     compare_baseline,
     coverage_score,
     enrich_x_meta,
@@ -126,11 +126,23 @@ def test_enrich_index_alignment() -> None:
 # ── train_meta_learner ─────────────────────────────────────────────────────────
 
 @pytest.mark.parametrize("q", [0.1, 0.5, 0.9])
-def test_train_meta_learner_returns_ridge(q: float) -> None:
+def test_train_meta_learner_returns_quantile_linear(q: float) -> None:
     X_meta, y_meta, flags_meta = _x_meta_and_flags()
     X13 = enrich_x_meta(X_meta, flags_meta)
     model = train_meta_learner(q, X13, y_meta)
-    assert isinstance(model, Ridge)
+    assert isinstance(model, QuantileLinear)
+
+
+def test_train_meta_learner_not_degenerate() -> None:
+    """Regression: üç quantile için identik model üretilmemeli (Ridge MSE bug)."""
+    X_meta, y_meta, flags_meta = _x_meta_and_flags()
+    X13 = enrich_x_meta(X_meta, flags_meta)
+    m01 = train_meta_learner(0.1, X13, y_meta)
+    m09 = train_meta_learner(0.9, X13, y_meta)
+    assert not np.allclose(m01.coef_, m09.coef_), \
+        "Üç quantile için identik model üretildi (Ridge MSE bug regression)"
+    assert m01.intercept_ != m09.intercept_, \
+        "q01 ve q09 intercept'leri identik (degenerate model)"
 
 
 @pytest.mark.parametrize("q", [0.1, 0.5, 0.9])
@@ -138,7 +150,7 @@ def test_train_meta_learner_predict_shape(q: float) -> None:
     X_meta, y_meta, flags_meta = _x_meta_and_flags()
     X13 = enrich_x_meta(X_meta, flags_meta)
     model = train_meta_learner(q, X13, y_meta)
-    preds = model.predict(X13)
+    preds = model.predict(X13[_q_cols(q)].to_numpy())
     assert preds.shape == (len(X13),)
 
 

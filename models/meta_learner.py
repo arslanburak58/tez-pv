@@ -1,37 +1,159 @@
 """
-STAGE-6: Ridge × 3 meta-öğrenici — 9 OOF + 3 missingness flag = 12 özellik.
+STAGE-6: Ridge × 3 meta-öğrenici — quantile-özgü OOF seçimi + missingness flags.
 
-Hipotez: is_X_missing flag'leri meta-katmana eklenince CRPS istatistiksel anlamlı
-         düşer (Diebold-Mariano testi, STAGE-10).
+Her meta-model yalnızca kendi quantile'ına ait 3 OOF tahmini + 3 flag = 6 özellik görür.
+Bu sayede Ridge her quantile için farklı girdi → farklı çözüm üretir (q01 ≠ q05 ≠ q09).
+
+Tez hipotezi: is_X_missing flag'leri meta-katmana eklenince CRPS istatistiksel anlamlı
+              düşer (Diebold-Mariano testi, STAGE-10).
 
 API:
-    enrich_x_meta(X_meta, flags)              → pd.DataFrame (n_oof × 12)
-    train_meta_learner(q, X_meta_12, y)       → fitted Ridge
-    train_all_meta_learners(X_meta_12, y)     → dict[str, Ridge]
-    predict_intervals(models, X_meta_12)      → dict[str, np.ndarray]
-    coverage_score(y_true, y_lower, y_upper)  → float  (hedef ~0.80)
-    compare_baseline(models, X_meta_12, y)    → dict
+    enrich_x_meta(X_meta, flags)          → pd.DataFrame (n_oof × 12)
+    _q_cols(q)                            → list[str] — 6 quantile-özgü sütun
+    train_meta_learner(q, X_meta_12, y)   → fitted Ridge
+    train_all_meta_learners(X_meta_12, y) → dict[str, Ridge]
+    predict_intervals(models, X_meta_12)  → dict[str, np.ndarray]
+    coverage_score(y_true, y_lower, y_upper) → float  (hedef ~0.80)
+    compare_baseline(models, X_meta_12, y)   → dict
 
 Kurallar:
+    - Ridge(alpha) — MSE kaybı, saniyeler içinde eğitim (LP solver'ın O(n²) yükü yok)
+    - Her model kendi q sütunlarını seçer → farklı coef_ → farklı tahminler
     - LightGBM predict → DataFrame (sütun adları korunur)
     - Serileştirme joblib (pickle yasak)
 """
 
 import logging
 import random
+import warnings
 from typing import Any
 
 import joblib
 import numpy as np
 import pandas as pd
+import scipy.optimize
 from sklearn.linear_model import Ridge
 
-from models.base_learners import META_COLS, QUANTILES, _col_name, pinball_loss
+from models.base_learners import ALGOS, META_COLS, QUANTILES, _col_name, pinball_loss
 
 random.seed(42)
 np.random.seed(42)
 
 log = logging.getLogger(__name__)
+
+
+# ── QuantileLinear ─────────────────────────────────────────────────────────────
+
+class QuantileLinear:
+    """
+    L2-düzenlenmiş doğrusal kantil regresyon.
+
+    Pinball loss + L2 penalty objective'i scipy L-BFGS-B ile minimize eder.
+    sklearn API'sine uyumlu (fit/predict).
+
+    Parameters
+    ----------
+    quantile : float
+        Hedef kantil, (0, 1) aralığında.
+    alpha : float, default=1.0
+        L2 düzenleme katsayısı.
+    max_iter : int, default=500
+        L-BFGS-B maksimum iterasyon.
+    tol : float, default=1e-6
+        Yakınsama toleransı.
+
+    Examples
+    --------
+    >>> rng = np.random.default_rng(42)
+    >>> n = 500
+    >>> X = rng.normal(0, 1, (n, 3))
+    >>> y = X @ [1.0, -0.5, 0.3] + rng.normal(0, 0.5, n)
+    >>> m05 = QuantileLinear(quantile=0.5, alpha=0.1).fit(X, y)
+    >>> m09 = QuantileLinear(quantile=0.9, alpha=0.1).fit(X, y)
+    >>> assert m09.intercept_ > m05.intercept_
+    >>> assert not np.allclose(m05.coef_, m09.coef_)
+    """
+
+    def __init__(
+        self,
+        quantile: float,
+        alpha: float = 1.0,
+        max_iter: int = 500,
+        tol: float = 1e-6,
+    ) -> None:
+        self.quantile = quantile
+        self.alpha = alpha
+        self.max_iter = max_iter
+        self.tol = tol
+        self.coef_: np.ndarray
+        self.intercept_: float
+        self.n_iter_: int
+        self.converged_: bool
+
+    def _pinball_l2_objective(
+        self,
+        params: np.ndarray,
+        X: np.ndarray,
+        y: np.ndarray,
+    ) -> float:
+        """Pinball loss + L2 penalty. params = [intercept, *coef]."""
+        intercept = params[0]
+        coef = params[1:]
+        pred = X @ coef + intercept
+        residual = y - pred
+        loss = np.where(
+            residual >= 0,
+            self.quantile * residual,
+            (self.quantile - 1) * residual,
+        )
+        l2 = self.alpha * np.sum(coef ** 2)  # intercept'e L2 uygulanmaz
+        return float(np.mean(loss) + l2 / len(y))
+
+    def _pinball_l2_gradient(
+        self,
+        params: np.ndarray,
+        X: np.ndarray,
+        y: np.ndarray,
+    ) -> np.ndarray:
+        """Analytical gradient."""
+        intercept = params[0]
+        coef = params[1:]
+        pred = X @ coef + intercept
+        residual = y - pred
+        grad_pred = np.where(residual >= 0, -self.quantile, -(self.quantile - 1))
+        grad_intercept = np.mean(grad_pred)
+        grad_coef = (X.T @ grad_pred) / len(y) + 2 * self.alpha * coef / len(y)
+        return np.concatenate([[grad_intercept], grad_coef])
+
+    def fit(self, X: np.ndarray, y: np.ndarray) -> "QuantileLinear":
+        """X: (n, p) ndarray, y: (n,) ndarray."""
+        X = np.asarray(X, dtype=np.float64)
+        y = np.asarray(y, dtype=np.float64)
+        n_features = X.shape[1]
+        x0 = np.zeros(n_features + 1)
+
+        result = scipy.optimize.minimize(
+            fun=self._pinball_l2_objective,
+            x0=x0,
+            args=(X, y),
+            jac=self._pinball_l2_gradient,
+            method="L-BFGS-B",
+            options={"maxiter": self.max_iter, "gtol": self.tol},
+        )
+
+        if not result.success:
+            warnings.warn(f"QuantileLinear yakınsamadı: {result.message}")
+
+        self.intercept_ = float(result.x[0])
+        self.coef_ = result.x[1:]
+        self.n_iter_ = result.nit
+        self.converged_ = result.success
+        return self
+
+    def predict(self, X: np.ndarray) -> np.ndarray:
+        X = np.asarray(X, dtype=np.float64)
+        return X @ self.coef_ + self.intercept_
+
 
 # ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -50,6 +172,17 @@ def _meta_key(q: float) -> str:
     return f"meta_q{int(round(q * 10)):02d}"  # meta_q01 | meta_q05 | meta_q09
 
 
+def _key_to_q(key: str) -> float:
+    """meta_q01 → 0.1 | meta_q05 → 0.5 | meta_q09 → 0.9"""
+    return int(key[-2:]) / 10.0
+
+
+def _q_cols(q: float) -> list[str]:
+    """Quantile'a ait 3 OOF sütunu + 3 flag = 6 özellik."""
+    oof = [_col_name(algo, q) for algo in ALGOS]  # lgbm_q01, catboost_q01, xgboost_q01
+    return oof + FLAG_COLS
+
+
 # ── enrich_x_meta ─────────────────────────────────────────────────────────────
 
 def enrich_x_meta(
@@ -57,14 +190,14 @@ def enrich_x_meta(
     flags: pd.DataFrame,
 ) -> pd.DataFrame:
     """
-    9 OOF sütununa 4 missingness flag ekle → 13 özellikli X_meta.
+    9 OOF sütununa 3 missingness flag ekle → 12 özellikli X_meta.
 
     Args:
         X_meta: (n_oof × 9) — build_x_meta() çıktısı; orijinal index korunmuş
-        flags:  (n × 4)    — missingness flags; index X_meta ile hizalanabilir
+        flags:  (n × 3)    — missingness flags; index X_meta ile hizalanabilir
 
     Returns:
-        pd.DataFrame (n_oof × 13) — sütunlar META_IN_COLS sırasında
+        pd.DataFrame (n_oof × 12) — sütunlar META_IN_COLS sırasında
     """
     missing_oof = set(META_COLS) - set(X_meta.columns)
     if missing_oof:
@@ -83,44 +216,45 @@ def enrich_x_meta(
 
 def train_meta_learner(
     q: float,
-    X_meta_13: pd.DataFrame,
+    X_meta_12: pd.DataFrame,
     y: pd.Series | np.ndarray,
     alpha: float = DEFAULT_ALPHA,
-) -> Ridge:
+) -> QuantileLinear:
     """
-    Tek bir quantile için Ridge meta-öğrenici eğit.
+    Tek bir quantile için QuantileLinear meta-öğrenici eğit.
 
-    Taban modeller quantile'ı zaten kodladığından meta-katmanda
-    doğrusal harmanlama (squared-loss Ridge) yeterlidir.
-    Alpha STAGE-7'de Optuna ile aranacak.
+    Her model yalnızca kendi quantile'ına ait 3 OOF sütunu + 3 flag = 6 özellik görür.
+    QuantileLinear(quantile=q) pinball loss minimize eder → q01 ≠ q05 ≠ q09 garantisi.
     """
     if q not in QUANTILES:
         raise ValueError(f"q={q} geçersiz. Seçenekler: {QUANTILES}")
 
-    model = Ridge(alpha=alpha)
-    model.fit(X_meta_13, np.asarray(y))
-    log.info("Meta-öğrenici eğitildi | q=%.1f | alpha=%.4f", q, alpha)
+    cols = _q_cols(q)
+    X_q = X_meta_12[cols].to_numpy()
+    model = QuantileLinear(quantile=q, alpha=alpha)
+    model.fit(X_q, np.asarray(y))
+    log.info("Meta-öğrenici eğitildi | q=%.1f | alpha=%.4f | cols=%s", q, alpha, cols)
     return model
 
 
 # ── train_all_meta_learners ────────────────────────────────────────────────────
 
 def train_all_meta_learners(
-    X_meta_13: pd.DataFrame,
+    X_meta_12: pd.DataFrame,
     y: pd.Series | np.ndarray,
     alpha: float = DEFAULT_ALPHA,
     checkpoint_dir: str | None = None,
-) -> dict[str, Ridge]:
+) -> dict[str, QuantileLinear]:
     """
-    3 Ridge meta-öğrenicisini eğit (q=0.1 / 0.5 / 0.9).
+    3 QuantileLinear meta-öğrenicisini eğit (q=0.1 / 0.5 / 0.9).
 
     Returns:
         dict — anahtar: "meta_q01" | "meta_q05" | "meta_q09"
     """
-    models: dict[str, Ridge] = {}
+    models: dict[str, QuantileLinear] = {}
     for q in QUANTILES:
         key = _meta_key(q)
-        model = train_meta_learner(q, X_meta_13, y, alpha=alpha)
+        model = train_meta_learner(q, X_meta_12, y, alpha=alpha)
         models[key] = model
         if checkpoint_dir:
             path = f"{checkpoint_dir}/{key}.joblib"
@@ -132,19 +266,31 @@ def train_all_meta_learners(
 # ── predict_intervals ──────────────────────────────────────────────────────────
 
 def predict_intervals(
-    models: dict[str, Ridge],
-    X_meta_13: pd.DataFrame,
+    models: dict[str, QuantileLinear],
+    X_meta_12: pd.DataFrame,
 ) -> dict[str, np.ndarray]:
     """
-    3 quantile tahmini üret.
+    3 quantile tahmini üret; crossing önlemek için post-hoc sort uygular.
 
-    X_meta_13 DataFrame olarak geçirilir; Ridge sütun adlarına
-    ihtiyaç duymaz ama tutarlılık için tip korunur.
+    Her model kendi q sütunlarını X_meta_12'den seçer; ardından
+    np.sort(axis=0) ile q01 ≤ q05 ≤ q09 monotonluğu garantilenir.
 
     Returns:
         dict — anahtar: "meta_q01" | "meta_q05" | "meta_q09"
     """
-    return {key: model.predict(X_meta_13) for key, model in models.items()}
+    raw: dict[str, np.ndarray] = {}
+    for key, model in models.items():
+        q = _key_to_q(key)
+        cols = _q_cols(q)
+        raw[key] = model.predict(X_meta_12[cols].to_numpy())
+
+    preds_stack = np.stack([raw["meta_q01"], raw["meta_q05"], raw["meta_q09"]], axis=0)
+    preds_sorted = np.sort(preds_stack, axis=0)
+    return {
+        "meta_q01": preds_sorted[0],
+        "meta_q05": preds_sorted[1],
+        "meta_q09": preds_sorted[2],
+    }
 
 
 # ── coverage_score ─────────────────────────────────────────────────────────────
@@ -170,14 +316,14 @@ def coverage_score(
 # ── compare_baseline ───────────────────────────────────────────────────────────
 
 def compare_baseline(
-    meta_models: dict[str, Ridge],
-    X_meta_13: pd.DataFrame,
+    meta_models: dict[str, QuantileLinear],
+    X_meta_12: pd.DataFrame,
     y_true: np.ndarray | pd.Series,
 ) -> dict[str, Any]:
     """
     Stacked meta-model vs tek LightGBM-quantile baseline karşılaştır.
 
-    Baseline: X_meta_13 içindeki lgbm_q01 / lgbm_q05 / lgbm_q09 OOF tahminleri.
+    Baseline: X_meta_12 içindeki lgbm_q01 / lgbm_q05 / lgbm_q09 OOF tahminleri.
     Tamamlandı ölçütü: stacked modelin her quantile'da ≥ %5 pinball iyileşmesi.
 
     Returns:
@@ -198,10 +344,11 @@ def compare_baseline(
     baseline_scores: dict[str, float] = {}
 
     for meta_key, (q, lgbm_col) in q_map.items():
-        stacked_pred = meta_models[meta_key].predict(X_meta_13)
+        cols = _q_cols(q)
+        stacked_pred = meta_models[meta_key].predict(X_meta_12[cols].to_numpy())
         stacked_scores[meta_key] = pinball_loss(y, stacked_pred, q)
 
-        baseline_pred = X_meta_13[lgbm_col].to_numpy()
+        baseline_pred = X_meta_12[lgbm_col].to_numpy()
         baseline_scores[meta_key] = pinball_loss(y, baseline_pred, q)
 
     improvement: dict[str, float] = {}

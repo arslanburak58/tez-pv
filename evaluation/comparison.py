@@ -87,6 +87,17 @@ class ModelResult(TypedDict):
 
 # ── Yardımcı fonksiyonlar ──────────────────────────────────────────────────────
 
+def enforce_monotonicity(preds: dict[str, np.ndarray]) -> dict[str, np.ndarray]:
+    """q01 ≤ q05 ≤ q09 sıralamasını post-hoc zorla. Test setinde güvenlik ağı."""
+    stack = np.stack([preds["q01"], preds["q05"], preds["q09"]], axis=0)
+    sorted_stack = np.sort(stack, axis=0)
+    return {
+        "q01": sorted_stack[0],
+        "q05": sorted_stack[1],
+        "q09": sorted_stack[2],
+    }
+
+
 def normalize_stacked_preds(
     preds: dict[str, np.ndarray],
 ) -> dict[str, np.ndarray]:
@@ -147,6 +158,8 @@ def build_master_table(
             continue
         r = results[name]
         m = r["metrics"]
+        p = r["preds"]
+        monot = float(np.mean((p["q01"] <= p["q05"]) & (p["q05"] <= p["q09"])))
         rows.append({
             "Model":       MODEL_LABELS.get(name, name),
             "MAE":         m["mae"],
@@ -156,6 +169,7 @@ def build_master_table(
             "Pinball_q09": m["pinball_q09"],
             "CRPS":        m["crps"],
             "Coverage":    m["coverage"],
+            "Monot_pct":   monot,
             "Train_s":     r["train_time_s"],
         })
     return pd.DataFrame(rows).set_index("Model")
@@ -166,6 +180,7 @@ def build_master_table(
 def plot_master_table(
     df: pd.DataFrame,
     save_dir: str | Path = "figures",
+    suffix: str = "",
 ) -> list[Path]:
     """
     Master tabloyu matplotlib tablo figürü olarak PNG + PDF kaydet.
@@ -195,18 +210,18 @@ def plot_master_table(
 
     for j, col in enumerate(df.columns):
         col_vals = df[col].values.astype(float)
-        best_idx = int(np.argmax(col_vals)) if col == "Coverage" else int(np.argmin(col_vals))
+        best_idx = int(np.argmax(col_vals)) if col in ("Coverage", "Monot_pct") else int(np.argmin(col_vals))
         cell = tbl[best_idx + 1, j]
         cell.set_facecolor("#c8e6c9")
         cell.set_text_props(fontweight="bold")
 
     ax.set_title(
-        "Master Karşılaştırma Tablosu — 6 Model × 8 Metrik",
+        "Master Karşılaştırma Tablosu — 6 Model × 9 Metrik",
         fontsize=11,
         pad=12,
     )
     plt.tight_layout()
-    return _save_fig(fig, save_dir, "master_table")
+    return _save_fig(fig, save_dir, f"master_table{suffix}")
 
 
 # ── plot_probability_bands ─────────────────────────────────────────────────────
@@ -217,6 +232,7 @@ def plot_probability_bands(
     model_name: str = "stacked_flags",
     save_dir: str | Path = "figures",
     n_points: int = BAND_N_POINTS,
+    suffix: str = "",
 ) -> list[Path]:
     """
     Son n_points gözlem için gerçek değer vs medyan + %10-%90 bant grafiği.
@@ -243,7 +259,7 @@ def plot_probability_bands(
     ax.legend(fontsize=8)
     ax.grid(axis="y", linewidth=0.4, alpha=0.6)
     plt.tight_layout()
-    return _save_fig(fig, save_dir, f"probability_bands_{model_name}")
+    return _save_fig(fig, save_dir, f"probability_bands_{model_name}{suffix}")
 
 
 # ── apply_holm_bonferroni ──────────────────────────────────────────────────────
@@ -327,6 +343,7 @@ def dm_pairwise(
 def plot_dm_heatmap(
     dm_df: pd.DataFrame,
     save_dir: str | Path = "figures",
+    suffix: str = "",
 ) -> list[Path]:
     """
     DM pairwise p_adj değerlerini kare ısı haritası olarak PNG + PDF kaydet.
@@ -375,7 +392,7 @@ def plot_dm_heatmap(
             )
 
     plt.tight_layout()
-    return _save_fig(fig, save_dir, "dm_pairwise_heatmap")
+    return _save_fig(fig, save_dir, f"dm_pairwise_heatmap{suffix}")
 
 
 # ── plot_edge_ai_scatter ───────────────────────────────────────────────────────
@@ -383,6 +400,7 @@ def plot_dm_heatmap(
 def plot_edge_ai_scatter(
     df: pd.DataFrame,
     save_dir: str | Path = "figures",
+    suffix: str = "",
 ) -> list[Path]:
     """
     Edge AI argümanı: eğitim süresi (saniye, log ölçek) vs CRPS scatter plot.
@@ -406,7 +424,7 @@ def plot_edge_ai_scatter(
     ax.set_title("Edge AI: Hesaplama Süresi vs CRPS")
     ax.grid(True, linewidth=0.4, alpha=0.6)
     plt.tight_layout()
-    return _save_fig(fig, save_dir, "edge_ai_scatter")
+    return _save_fig(fig, save_dir, f"edge_ai_scatter{suffix}")
 
 
 # ── run_comparison ─────────────────────────────────────────────────────────────
@@ -414,9 +432,12 @@ def plot_edge_ai_scatter(
 def run_comparison(
     results: dict[str, ModelResult],
     save_dir: str | Path = "figures",
+    suffix: str = "",
 ) -> dict[str, Any]:
     """
     STAGE-10 tam karşılaştırma pipeline'ı.
+
+    suffix: dosya adına eklenen son ek (örn. "_daylight") — önceki çıktıların üzerine yazmaz.
 
     Adımlar:
         1. Master tablo → PNG + PDF
@@ -434,24 +455,27 @@ def run_comparison(
     save_dir     = Path(save_dir)
     saved_paths: list[Path] = []
 
+    for name in results:
+        results[name]["preds"] = enforce_monotonicity(results[name]["preds"])
+
     master_df = build_master_table(results)
     log.info("Master tablo:\n%s", master_df.to_string())
-    saved_paths.extend(plot_master_table(master_df, save_dir))
+    saved_paths.extend(plot_master_table(master_df, save_dir, suffix=suffix))
 
     for model_name in ["stacked_flags", "stacked_noflags"]:
         if model_name not in results:
             continue
         r = results[model_name]
         saved_paths.extend(
-            plot_probability_bands(r["y_true"], r["preds"], model_name, save_dir)
+            plot_probability_bands(r["y_true"], r["preds"], model_name, save_dir, suffix=suffix)
         )
 
     dm_df = dm_pairwise(results)
     log.info("DM pairwise:\n%s", dm_df.to_string())
     if not dm_df.empty:
-        saved_paths.extend(plot_dm_heatmap(dm_df, save_dir))
+        saved_paths.extend(plot_dm_heatmap(dm_df, save_dir, suffix=suffix))
 
-    saved_paths.extend(plot_edge_ai_scatter(master_df, save_dir))
+    saved_paths.extend(plot_edge_ai_scatter(master_df, save_dir, suffix=suffix))
 
     return {
         "master_table": master_df,

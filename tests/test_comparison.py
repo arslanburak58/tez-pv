@@ -19,6 +19,7 @@ from evaluation.comparison import (
     apply_holm_bonferroni,
     build_master_table,
     dm_pairwise,
+    enforce_monotonicity,
     normalize_stacked_preds,
     plot_dm_heatmap,
     plot_edge_ai_scatter,
@@ -145,12 +146,12 @@ class TestBuildMasterTable:
     def test_shape_full(self):
         res = _full_results()
         df  = build_master_table(res)
-        assert df.shape == (6, 8)
+        assert df.shape == (6, 9)
 
     def test_columns(self):
         df = build_master_table(_full_results())
         expected = {"MAE", "RMSE", "Pinball_q01", "Pinball_q05", "Pinball_q09",
-                    "CRPS", "Coverage", "Train_s"}
+                    "CRPS", "Coverage", "Monot_pct", "Train_s"}
         assert set(df.columns) == expected
 
     def test_row_order_follows_model_order(self):
@@ -392,3 +393,38 @@ class TestRunComparison:
         del res["stacked_noflags"]
         out = run_comparison(res, tmp_path)
         assert "master_table" in out
+
+
+# ── enforce_monotonicity ───────────────────────────────────────────────────────
+
+class TestEnforceMonotonicity:
+    def test_crossed_preds_are_sorted(self):
+        """Bilerek tersine çevrilmiş preds → sıralanmış çıkmalı."""
+        preds = {
+            "q01": np.array([5.0]),
+            "q05": np.array([3.0]),
+            "q09": np.array([1.0]),
+        }
+        out = enforce_monotonicity(preds)
+        assert out["q01"][0] == pytest.approx(1.0)
+        assert out["q05"][0] == pytest.approx(3.0)
+        assert out["q09"][0] == pytest.approx(5.0)
+
+    def test_already_monotone_unchanged(self):
+        preds = {
+            "q01": np.array([1.0, 2.0]),
+            "q05": np.array([3.0, 4.0]),
+            "q09": np.array([5.0, 6.0]),
+        }
+        out = enforce_monotonicity(preds)
+        np.testing.assert_array_equal(out["q01"], preds["q01"])
+        np.testing.assert_array_equal(out["q05"], preds["q05"])
+        np.testing.assert_array_equal(out["q09"], preds["q09"])
+
+    def test_output_monotone(self):
+        """Rastgele crossed preds sonrası q01 ≤ q05 ≤ q09 garantisi."""
+        rng = np.random.default_rng(0)
+        base = {k: rng.uniform(0, 100, 50) for k in ("q01", "q05", "q09")}
+        out = enforce_monotonicity(base)
+        assert np.all(out["q01"] <= out["q05"])
+        assert np.all(out["q05"] <= out["q09"])
