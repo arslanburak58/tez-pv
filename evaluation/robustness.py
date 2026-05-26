@@ -55,10 +55,9 @@ DERIVED_ZERO_MAP: dict[str, list[str]] = {
 }
 
 SENSOR_FLAG_MAP: dict[str, str] = {
-    "G":          "is_G_missing",
-    "T_amb":      "is_Tamb_missing",
-    "RH":         "is_RH_missing",
-    "wind_speed": "is_wind_missing",
+    "G":     "is_G_missing",
+    "T_amb": "is_Tamb_missing",
+    "RH":    "is_RH_missing",
 }
 
 # Tahmin anahtarı → quantile değeri

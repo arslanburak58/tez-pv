@@ -42,12 +42,11 @@ IMPUTER_STRATEGIES: tuple[str, ...] = ("ffill", "median", "knn")
 WF_GAP: int = 24                 # Walk-Forward gap (timesteps, not hours)
 WF_N_SPLITS: int = 5
 
-SENSOR_COLS: list[str] = ["G", "T_amb", "RH", "wind_speed"]
+SENSOR_COLS: list[str] = ["G", "T_amb", "RH"]
 MISSINGNESS_FLAG_COLS: list[str] = [
     "is_G_missing",
     "is_Tamb_missing",
     "is_RH_missing",
-    "is_wind_missing",
 ]
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
@@ -63,10 +62,9 @@ def make_missingness_flags(df: pd.DataFrame) -> pd.DataFrame:
     """Binary flags for each sensor column. Created from RAW data before imputation."""
     flags = pd.DataFrame(index=df.index)
     col_flag_map = {
-        "G": "is_G_missing",
+        "G":     "is_G_missing",
         "T_amb": "is_Tamb_missing",
-        "RH": "is_RH_missing",
-        "wind_speed": "is_wind_missing",
+        "RH":    "is_RH_missing",
     }
     for col, flag in col_flag_map.items():
         flags[flag] = df[col].isna().astype(int) if col in df.columns else 0

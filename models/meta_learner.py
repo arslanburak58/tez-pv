@@ -1,16 +1,16 @@
 """
-STAGE-6: Ridge × 3 meta-öğrenici — 9 OOF + 4 missingness flag = 13 özellik.
+STAGE-6: Ridge × 3 meta-öğrenici — 9 OOF + 3 missingness flag = 12 özellik.
 
 Hipotez: is_X_missing flag'leri meta-katmana eklenince CRPS istatistiksel anlamlı
          düşer (Diebold-Mariano testi, STAGE-10).
 
 API:
-    enrich_x_meta(X_meta, flags)              → pd.DataFrame (n_oof × 13)
-    train_meta_learner(q, X_meta_13, y)       → fitted Ridge
-    train_all_meta_learners(X_meta_13, y)     → dict[str, Ridge]
-    predict_intervals(models, X_meta_13)      → dict[str, np.ndarray]
+    enrich_x_meta(X_meta, flags)              → pd.DataFrame (n_oof × 12)
+    train_meta_learner(q, X_meta_12, y)       → fitted Ridge
+    train_all_meta_learners(X_meta_12, y)     → dict[str, Ridge]
+    predict_intervals(models, X_meta_12)      → dict[str, np.ndarray]
     coverage_score(y_true, y_lower, y_upper)  → float  (hedef ~0.80)
-    compare_baseline(models, X_meta_13, y)    → dict
+    compare_baseline(models, X_meta_12, y)    → dict
 
 Kurallar:
     - LightGBM predict → DataFrame (sütun adları korunur)
@@ -39,10 +39,9 @@ FLAG_COLS: list[str] = [
     "is_G_missing",
     "is_Tamb_missing",
     "is_RH_missing",
-    "is_wind_missing",
 ]
 
-META_IN_COLS: list[str] = META_COLS + FLAG_COLS  # 13 özellik
+META_IN_COLS: list[str] = META_COLS + FLAG_COLS  # 12 özellik (9 OOF + 3 flag)
 
 DEFAULT_ALPHA: float = 1.0
 

@@ -60,7 +60,7 @@ def test_meta_key_format() -> None:
 # ── META_IN_COLS ───────────────────────────────────────────────────────────────
 
 def test_meta_in_cols_length() -> None:
-    assert len(META_IN_COLS) == 13  # 9 OOF + 4 flags
+    assert len(META_IN_COLS) == 12  # 9 OOF + 3 flags
 
 
 def test_meta_in_cols_order() -> None:
@@ -73,7 +73,7 @@ def test_meta_in_cols_order() -> None:
 def test_enrich_shape() -> None:
     X_meta, y_meta, flags_meta = _x_meta_and_flags()
     X13 = enrich_x_meta(X_meta, flags_meta)
-    assert X13.shape[1] == 13
+    assert X13.shape[1] == 12
     assert X13.shape[0] == len(X_meta)
 
 

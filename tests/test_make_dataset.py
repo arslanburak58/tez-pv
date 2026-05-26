@@ -34,13 +34,11 @@ def _synthetic_df(
             "G": rng.uniform(0, 900, n),
             "T_amb": rng.uniform(10, 45, n),
             "RH": rng.uniform(10, 90, n),
-            "wind_speed": rng.uniform(0, 15, n),
             "target": rng.uniform(0, 200, n),
         },
         index=times,
     )
-    # Introduce missing values
-    for col in ["G", "T_amb", "RH", "wind_speed"]:
+    for col in ["G", "T_amb", "RH"]:
         mask = rng.random(n) < missing_frac
         df.loc[df.index[mask], col] = np.nan
     return df
@@ -66,17 +64,17 @@ def test_rename_dkasc() -> None:
 
 def test_flags_created_before_imputation() -> None:
     times = pd.date_range("2020-01-01", periods=10, freq="5min", tz="UTC")
-    df = pd.DataFrame({"G": [np.nan, 1.0] * 5, "T_amb": 25.0, "RH": 50.0, "wind_speed": 5.0}, index=times)
+    df = pd.DataFrame({"G": [np.nan, 1.0] * 5, "T_amb": 25.0, "RH": 50.0}, index=times)
     flags = make_missingness_flags(df)
     assert flags["is_G_missing"].sum() == 5
     assert flags["is_Tamb_missing"].sum() == 0
 
 
-def test_flags_all_four_present() -> None:
+def test_flags_all_three_present() -> None:
     times = pd.date_range("2020-01-01", periods=4, freq="5min", tz="UTC")
-    df = pd.DataFrame({"G": 1.0, "T_amb": 25.0, "RH": 50.0, "wind_speed": 5.0}, index=times)
+    df = pd.DataFrame({"G": 1.0, "T_amb": 25.0, "RH": 50.0}, index=times)
     flags = make_missingness_flags(df)
-    assert set(flags.columns) == {"is_G_missing", "is_Tamb_missing", "is_RH_missing", "is_wind_missing"}
+    assert set(flags.columns) == {"is_G_missing", "is_Tamb_missing", "is_RH_missing"}
 
 
 # ── make_dataset — split ratios ────────────────────────────────────────────────
@@ -161,7 +159,7 @@ def test_physical_cols_present() -> None:
 def test_missingness_flags_in_features() -> None:
     df = _synthetic_df(n=500)
     out = make_dataset(df, DKASC_LOCATION, freq_minutes=5)
-    for flag in ["is_G_missing", "is_Tamb_missing", "is_RH_missing", "is_wind_missing"]:
+    for flag in ["is_G_missing", "is_Tamb_missing", "is_RH_missing"]:
         assert flag in out["feature_cols"], f"Missing flag: {flag}"
 
 
@@ -180,8 +178,8 @@ def test_target_nan_rows_dropped() -> None:
     rng = np.random.default_rng(99)
     times = pd.date_range("2015-01-01", periods=500, freq="5min", tz="UTC")
     df = pd.DataFrame(
-        {"G": 1.0, "T_amb": 25.0, "RH": 50.0, "wind_speed": 5.0,
-         "target": rng.uniform(0, 100, 500)}, index=times
+        {"G": 1.0, "T_amb": 25.0, "RH": 50.0, "target": rng.uniform(0, 100, 500)},
+        index=times
     )
     df.loc[df.index[:10], "target"] = np.nan
     out = make_dataset(df, DKASC_LOCATION, freq_minutes=5)

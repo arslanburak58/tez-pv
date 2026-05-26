@@ -26,11 +26,11 @@ DKASC_LOCATION: dict[str, Any] = {
 }
 
 # DKASC raw → canonical column mapping
+# wind_speed çıkarıldı: DKASC'de %85 eksik (yalnızca 2015-2016), Ross T_cell modeli kullanmaz
 DKASC_COL_MAP: dict[str, str] = {
     "101_DKA_WeatherStation_Global_Horizontal_Radiation": "G",
     "101_DKA_WeatherStation_Weather_Temperature_Celsius": "T_amb",
     "101_DKA_WeatherStation_Weather_Relative_Humidity": "RH",
-    "101_DKA_WeatherStation_Wind_Speed": "wind_speed",
     "96_DKA_MasterMeter1_Active_Power": "target",
 }
 
@@ -39,7 +39,6 @@ PVOD_COL_MAP: dict[str, str] = {
     "lmd_totalirrad": "G",
     "lmd_temperature": "T_amb",
     "nwp_humidity": "RH",
-    "lmd_windspeed": "wind_speed",
     "power": "target",
 }
 

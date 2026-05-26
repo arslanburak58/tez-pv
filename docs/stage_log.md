@@ -228,3 +228,20 @@ Test sonucu: **43/43 PASSED**
 > "Kısa boşluklar (≤ 3 saat) doğrusal interpolasyonla dolduruldu. Daha uzun boşluklar için ileriye/geriye doldurma (ffill/bfill) stratejisi kullanıldı; bu yaklaşım zaman serisi verisinde komşu gözlemlerin en bilgilendirici kaynak olduğu varsayımıyla tutarlıdır (Little & Rubin, 2002). Missingness flags ayrıca meta-katmana aktarıldığından imputation kalitesi nihai modeli ikincil olarak etkiler."
 
 **Test sonucu:** **19/19 PASSED** (3 yeni test dahil: median strateji, geçersiz strateji, tüm stratejiler NaN-free)
+
+---
+
+## wind_speed Model Girdisinden Çıkarıldı
+
+**Tarih:** 2026-05-26
+
+wind_speed model girdisinden çıkarıldı. Gerekçe: DKASC'de yalnızca 2015-2016 döneminde mevcut, %85 eksik. Ross hücre sıcaklığı formülü (T_cell = T_amb + G·(NOCT−20)/800) rüzgar değişkenini kullanmadığından T_cell hesabı etkilenmedi.
+
+**Etkilenen dosyalar:**
+- `scripts/make_dataset.py`: `SENSOR_COLS` ve `MISSINGNESS_FLAG_COLS`'dan çıkarıldı
+- `features/physical.py`: `DKASC_COL_MAP` ve `PVOD_COL_MAP`'ten kaldırıldı
+- `models/meta_learner.py`: `FLAG_COLS`'dan `is_wind_missing` kaldırıldı; `META_IN_COLS` 13 → 12 (9 OOF + 3 flag)
+- `evaluation/robustness.py`: `SENSOR_FLAG_MAP`'ten `wind_speed` kaldırıldı
+- Tüm ilgili testler güncellendi
+
+**Tez yazımı notu:** Yöntem bölümünde şu açıklama yapılacak — DKASC veri setinde rüzgar ölçümleri 2010-2014 ve 2017-2022 dönemlerinde mevcut değildir. Ross modeli tercihi bu eksikliği avantaja çevirmiştir: model basit, rüzgar verisine bağımsız ve eksik ölçümlerden etkilenmemiştir. Daha karmaşık Sandia/Faiman gibi hücre sıcaklığı modelleri rüzgar girdisi gerektirdiğinden bu veri setinde uygulanamazdı.

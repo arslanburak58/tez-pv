@@ -43,7 +43,6 @@ def _make_X(n: int = N) -> pd.DataFrame:
             "G":          rng.uniform(0, 1000, n),
             "T_amb":      rng.uniform(10, 40, n),
             "RH":         rng.uniform(20, 80, n),
-            "wind_speed": rng.uniform(0, 10, n),
             "k_t":        rng.uniform(0, 1, n),
             "T_cell":     rng.uniform(20, 60, n),
             "cos_zenith": rng.uniform(0, 1, n),
@@ -58,7 +57,6 @@ def _make_flags(n: int = N) -> pd.DataFrame:
             "is_G_missing":    np.zeros(n, dtype=int),
             "is_Tamb_missing": np.zeros(n, dtype=int),
             "is_RH_missing":   np.zeros(n, dtype=int),
-            "is_wind_missing": np.zeros(n, dtype=int),
         }
     )
 
