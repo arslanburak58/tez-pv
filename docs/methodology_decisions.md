@@ -91,6 +91,12 @@ v1'de x_meta'da flag sütunlarını rastgele 0→1 toggle ettik ama base predict
 
 ---
 
+**[Sonraki Revizyon — Karar 7'ye bakınız]**
+
+V2 corruption-aware training, smoke test'te dramatik iyileşme gösterdi (ΔCRPS = -%13.56) ancak tam STAGE-8 çalıştırmasında tutarsız çıktı (ortalama ΔCRPS = +%6.2, ters yön). Sebep: (i) eğitim augmentation'da multi-sensor flag co-occurrence test ile uyumsuzdu, (ii) ffill stale değer patolojisi meta'ya yanıltıcı sinyal verdi. Smoke test sonucu post-hoc analizde **artefakt** olarak değerlendirildi (büyük olasılıkla seed-bağımlı bir patern). V2 deprecate edilmiştir; aktif sürüm QuantileLinearBounded (v7) — Karar 7'ye bakınız.
+
+---
+
 ## Karar 5: Quantile crossing fix — post-hoc monotonicity enforcement
 
 **Detay:** QuantileLinear üç quantile için ayrı eğitilir, sıralama (q01 ≤ q05 ≤ q09) matematiksel olarak garanti edilmez. Post-hoc fix: `np.sort([q01, q05, q09], axis=0)`. Train + test üzerinde monotonicity = 1.000 sağlanıyor.
@@ -109,25 +115,89 @@ v1'de x_meta'da flag sütunlarını rastgele 0→1 toggle ettik ama base predict
 
 ---
 
-## Karar 7: Bounded QuantileLinear meta-learner (v7)
+## Karar 7: Bounded QuantileLinear meta-learner (v7) ve H1 hipotezi sonucu
 
-**Karşı seçilen:** v2 (standart QuantileLinear, augmentation patolojisi)
+**Karşı seçilen:** v2 (Karar 4) — augmentation patolojisi nedeniyle deprecate.
 
 **Niye değiştirildi:**
-v2 ile tam STAGE-8'de ortalama ΔCRPS +%6.2 (yanlış yönde anlamlı). Teşhis: (i) eğitim augmentation'da multi-sensor flag co-occurrence test ile uyumsuzdu (eğitimde %21.5 satır 2+ flag, testte %0); (ii) ffill imputation bazen büyük stale değerler üretiyor, meta bunları kapsayan agresif flag katsayıları öğrenir (q09 is_G_missing = −5.32) → test'te overcorrection. (iii) q09 flag katsayısı L2 regularization'a karşı dirençli — alpha = 0.5'ten 20'ye artırmak katsayıyı yalnızca %1 küçülttü.
+V2 ile tam STAGE-8 çalıştırmasında ortalama ΔCRPS = +%6.20 (yanlış yönde anlamlı). Teşhis adımları (stage_log.md "26 Mayıs uzun oturum" kaydı):
+1. Eğitim corruption dağılımı test ile uyumsuz: eğitimde %21.5 satır 2+ flag eşzamanlı, test senaryolarında %0
+2. ffill imputation patolojik stale değerler üretiyor → base modeller sistematik aşırı tahmin → meta agresif düzeltme katsayıları öğreniyor (q09 is_G_missing = -5.32)
+3. Test'te aynı sistematik bias oluşmuyor → overcorrection
 
 **Çift düzeltme uygulandı:**
-1. **Augmentation (v5):** tek-sensör random %30 + burst 1/6/24h %20 + clean %50. STAGE-8 değerlendirme senaryolarıyla bire bir uyumlu eğitim dağılımı.
-2. **Regularization (QuantileLinearBounded):** Base prediction katsayıları serbest, flag katsayıları [-1.0, +1.0] box constraint. scipy L-BFGS-B `bounds` parametresi ile uygulandı.
+1. **Augmentation (v5):** tek-sensör random %30 (rate Uniform 0.10-0.50) + burst tek-sensör %20 (1/6/24 saat ardışık blok) + clean %50. Test senaryolarıyla dağılımsal uyum sağlandı.
+2. **Regularization (bounded):** QuantileLinearBounded sınıfı, scipy L-BFGS-B bounds parametresi. Base prediction katsayıları serbest, flag katsayıları [-1.0, +1.0] box constraint altında. Bu kısıt, augmentation'ın üretebileceği patolojik büyük katsayıları (örn. -5.32) matematiksel olarak engeller.
 
-**Sonuç:** v7 ile tam STAGE-8 ortalama ΔCRPS +%1.44 (v2: +%6.2). Burst senaryolarda flags pozitif yönde iyileştirme (Burst G 6h: −0.09%, Burst G 24h: −0.79%). Coverage 0.72–0.88 bandında istikrarlı. 9/9 DM anlamlı. Bantlar semantik olarak doğru genişliyor: G eksik → q01 aşağı (−1.0), q09 hafif yukarı (+0.11).
+İki teknik birlikte: meta_models_robust_v7.joblib
 
-**Atıflar:**
-- Bounded optimization: scipy.optimize.minimize L-BFGS-B (Jones ve ark., 2001)
-- Burst pattern justification: Hasan ve ark. (2023), Bouslimani ve ark. (2025)
+---
 
-**Tez paragrafı (Yöntem 3.4 güncellemesi):**
-> Meta-öğrenici QuantileLinearBounded sınıfı olarak implemente edilmiştir; base prediction katsayıları serbest, flag katsayıları |coef| ≤ 1.0 box constraint altında optimize edilir. Bu kısıt, eğitim augmentation'ın üretebileceği patolojik agresif düzeltme katsayılarını önler. Augmentation stratejisi tek-sensör random ve burst (1/6/24 saat ardışık) corruption'ı karıştırarak STAGE-8 değerlendirme senaryolarıyla bire bir uyumlu eğitim dağılımı sağlar. v7 modeli ile gerçekleştirilen tam STAGE-8 değerlendirmesinde (9 senaryo, Holm-Bonferroni düzeltmeli Diebold-Mariano testi) ortalama ΔCRPS = +%1.44 elde edilmiş, tüm senaryolarda istatistiksel anlamlılık (p < 0.05) korunmuştur. Burst G 6h ve 24h senaryolarında flags CRPS'i sırasıyla −%0.09 ve −%0.79 iyileştirmiştir.
+### STAGE-8 Sonuçları (v7 ile tam çalıştırma)
+
+| Senaryo | ΔCRPS% | Coverage |
+|---|---|---|
+| Rnd G %10 | +0.95% | 0.817 |
+| Rnd G %20 | +1.87% | 0.832 |
+| Rnd G %30 | +2.92% | 0.848 |
+| Rnd G %50 | +4.99% | 0.880 |
+| Burst G 1h | +2.35% | 0.843 |
+| **Burst G 6h** | **-0.09%** | 0.794 |
+| **Burst G 24h** | **-0.79%** | 0.720 |
+| Rnd T_amb %30 | +1.18% | 0.812 |
+| **Rnd RH %30** | **-0.44%** | 0.777 |
+| **Ortalama** | **+1.44%** | 0.72-0.88 |
+
+DM testi: 9/9 anlamlı (Holm-Bonferroni düzeltmeli, p<0.001).
+
+---
+
+### Dürüst Değerlendirme
+
+**H1 hipotezi doğrulanmadı.**
+
+Tez önerisindeki orijinal H1: "Missingness flags eklenmesi, flags kullanmayan referans modele kıyasla CRPS değerini istatistiksel olarak anlamlı düzeyde **düşürecektir**."
+
+Sonuç: Ortalama ΔCRPS = +%1.44 (yani CRPS **yükselmiştir**). 9 senaryonun 6'sında küçük artış, 3'ünde küçük azalış gözlenmiştir.
+
+**Effect size pratik anlamı yok.**
+
+İyileşme gözlenen üç senaryoda mutlak CRPS değişimi 0.002–0.04 puan aralığındadır. Mutlak CRPS değerleri 0.59–4.93 arasında olduğundan, göreli kazanım gürültü mertebesindedir. DM testinin 9/9 anlamlı çıkması sadece "iki dağılım arasında fark var" anlamına gelir; n=94K'lık örneklem boyutu çok küçük farkları bile istatistiksel anlamlı yapar. **Effect size ihmal edilebilir düzeydedir.**
+
+**Operasyonel uygulanabilirlik:**
+
+Bu kazanım, sisteme eklenen ek mekanizma (3 flag sütunu, augmentation pipeline'ı, box-constrained optimization) ile dengelenmemektedir. Saha uygulamasında operasyonel maliyet, marjinal kazanımı **aşmaktadır**. Bu mekanizma ticari deployment'ta tercih edilmeyecektir.
+
+**Gerçek katkı: Coverage stability.**
+
+H1 doğrulanmamış olmakla birlikte, coverage tüm dokuz senaryoda nominal %80 hedefin yakın çevresinde (0.72–0.88) korunmuştur. Bu, mimarinin sensör kaybı altında **bant kalibrasyonunu sürdürdüğünü** göstermektedir — "dayanıklılık" iddiası bu çerçevede yeniden tanımlanabilir.
+
+---
+
+### Tez Metni İçin Dürüst Paragraf (Bulgular 4.X)
+
+> "Önerilen meta-katman missingness flag mekanizması STAGE-8 robustness protokolünde dokuz farklı senaryo üzerinde test edilmiştir. Holm-Bonferroni düzeltmeli Diebold-Mariano testi tüm karşılaştırmalarda istatistiksel anlamlılık göstermiş (p < 0.001), ancak ortalama ΔCRPS = +%1.44 ile orijinal H1 hipotezi (flags CRPS'i düşürür) **doğrulanamamıştır**. Yalnızca üç senaryoda küçük iyileşme gözlenmiş (Burst 6h: -%0.09, Burst 24h: -%0.79, Rnd RH %30: -%0.44), mutlak etki büyüklükleri (0.002–0.04 CRPS puanı) ise pratik anlam taşımayacak düzeydedir. Bu bulgu, ağaç tabanlı taban modellerin sensör eksikliğine karşı içsel dayanıklılığını gösteren literatürle (Twala ve ark., 2008; Perez-Lebel ve ark., 2022) tutarlıdır.
+>
+> Buna karşın **bant kapsama oranı (coverage) tüm dokuz senaryoda nominal hedefin yakın çevresinde (0.72–0.88) korunmuş**, sistemin sensör kaybı altında olasılıksal kalibrasyonu sürdürdüğünü göstermiştir. Bu, mimarinin dayanıklılık argümanı için ampirik destek oluşturmaktadır: model performansı sensör kayıpları altında **çökmemekte, bant yapısını korumaktadır**. Bulgular CRPS-tabanlı keskinlik kazanımı yerine kalibrasyon-tabanlı dayanıklılık olarak yorumlanmalıdır."
+
+---
+
+### Atıflar
+
+- Twala, B. E. T. H., Jones, M. C. & Hand, D. J. (2008). Good methods for coping with missing data in decision trees. *Pattern Recognition Letters*, 29(7), 950-956.
+- Perez-Lebel, A. ve ark. (2022). Benchmarking missing-values approaches for predictive models on health databases. *GigaScience*, 11.
+- scipy.optimize.minimize L-BFGS-B (bounds parametresi)
+- Hasan ve ark. (2023), Bouslimani ve ark. (2025) — burst arıza karakteristiği
+
+---
+
+### Açık Karar Noktaları (Danışman ile Görüşülecek)
+
+1. **Tez başlığı:** "Sensör Kayıplarına Dayanıklı Olasılıksal Güç Tahmini" başlığındaki "dayanıklılık" iddiası, CRPS azaltma yerine coverage stability olarak yeniden tanımlanabilir. Bu yorum savunulabilirdir ancak başlığın iddiası bir miktar gerilemiş olmaktadır. Alternatif: başlık "Fizik Kısıtlı Kalibre Edilmiş Olasılıksal Güç Tahmini" gibi flag-bağımsız bir konumlandırmaya çevrilebilir.
+
+2. **İyileştirme yolu (gelecek çalışma):** ffill imputation yerine daily-mean veya monthly-hourly-mean imputation kullanılması, base modellerin stale değer üretmesini engelleyerek flag patolojisini kök nedeninde düzeltebilir. Bu yaklaşım STAGE-2/3 pipeline'ının yeniden kurulmasını gerektirir (~4-6 saat); kesin getirisi belirsizdir. Bu tez kapsamında uygulanmamış, gelecek çalışma önerisi olarak konulmuştur.
+
+3. **Asıl tez katkıları:** Flag mekanizması haricinde tezin diğer üç özgün katkısı (fizik kısıtlı pvlib öznitelikleri, kalibre edilmiş CQR bantları, quantile stacking ile TFT-competitive performans) sağlam çalışmaktadır. Tezin omurgası bu üç katkı üzerine kurulabilir.
 
 ---
 
