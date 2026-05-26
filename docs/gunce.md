@@ -1,7 +1,7 @@
-## [Mayıs 2026] — STAGE-9 Tamamlandı
+## [Mayıs 2026] — STAGE-10 Devam Ediyor
 
-Aktif adım: STAGE-10 bekleniyor
-Sıradaki konuşmada: "STAGE-10'a başlıyoruz" ile başlat
+Aktif adım: STAGE-10 kodu yazıldı — gerçek veriyle çalıştırma bekleniyor
+Sıradaki konuşmada: "STAGE-10 çalıştırıyoruz" ile başlat (gerçek model checkpoint'leri yükle, run_comparison çağır)
 Aktif model    : Sonnet 4.6 / Extended Thinking: kapalı
 Son güncelleme : Mayıs 2026
 Tıkanıklık     : yok
@@ -80,13 +80,20 @@ Altyapı:
   * make_sequences, evaluate_quantiles, train_all_baselines unified API
   * 43/43 birim test geçti (tests/test_baselines.py)
 
+- S10 Karşılaştırmalı analiz ⏳ — evaluation/comparison.py yazıldı, 47/47 birim test geçti
+  * build_master_table: 6 model × 8 metrik DataFrame
+  * plot_master_table: en iyi hücre yeşil vurgulu, PNG+PDF
+  * plot_probability_bands: q01/q05/q09 bant, PNG+PDF
+  * apply_holm_bonferroni: Holm (1979) çoklu karşılaştırma düzeltmesi
+  * dm_pairwise: tüm model çiftleri DM testi + Holm-Bonferroni, uzunluk hizalamalı
+  * plot_dm_heatmap: pairwise p_adj kare ısı haritası, PNG+PDF
+  * plot_edge_ai_scatter: Train_s vs CRPS log-ölçek, PNG+PDF
+  * run_comparison: tam pipeline orkestratörü
+  → Kalan: gerçek checkpoint'ler yüklenerek run_comparison(results, "figures/") çağrısı
+
 Açık görevler:
-- STAGE-10: Karşılaştırmalı analiz
-  * Master tablo: 6 model × (MAE, RMSE, Pinball, CRPS, Coverage, süre)
-  * Heatmap: sensör × hata değişimi
-  * Olasılıksal bant görselleştirme
-  * Diebold-Mariano pairwise testleri (Holm-Bonferroni)
-  * figures/ altına PNG + PDF
+- STAGE-10 gerçek çalıştırma: model checkpoint'lerini yükle, ModelResult dict oluştur, run_comparison çağır
+- STAGE-11: Streamlit demo
 
 Sistem:
 - claude.ai Projects → düşünme, yazım, karar
