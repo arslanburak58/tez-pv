@@ -245,3 +245,11 @@ wind_speed model girdisinden çıkarıldı. Gerekçe: DKASC'de yalnızca 2015-20
 - Tüm ilgili testler güncellendi
 
 **Tez yazımı notu:** Yöntem bölümünde şu açıklama yapılacak — DKASC veri setinde rüzgar ölçümleri 2010-2014 ve 2017-2022 dönemlerinde mevcut değildir. Ross modeli tercihi bu eksikliği avantaja çevirmiştir: model basit, rüzgar verisine bağımsız ve eksik ölçümlerden etkilenmemiştir. Daha karmaşık Sandia/Faiman gibi hücre sıcaklığı modelleri rüzgar girdisi gerektirdiğinden bu veri setinde uygulanamazdı.
+
+---
+
+## wind_speed Çıkarma Sonrası Test Güncellemesi
+
+**Tarih:** 2026-05-26
+
+test_make_dataset.py, test_meta_learner.py, test_robustness.py güncellendi. 108/108 PASSED. META_IN_COLS 13→12, senaryo sayısı 10→9. Pipeline yeniden başlatıldı, dataset.joblib silindi, gerçek veriyle eğitim devam ediyor.

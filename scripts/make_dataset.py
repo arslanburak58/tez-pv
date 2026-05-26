@@ -150,7 +150,14 @@ def make_dataset(
 
     df = df.sort_index()
 
-    # ── 0. Target NaN satırlarını düşür ───────────────────────────────────────
+    # ── 0a. SENSOR_COLS + target dışındaki sütunları düşür ────────────────────
+    known = set(SENSOR_COLS) | {target_col}
+    extra = [c for c in df.columns if c not in known]
+    if extra:
+        log.warning("Bilinmeyen sütunlar düşürüldü: %s", extra)
+        df = df.drop(columns=extra)
+
+    # ── 0b. Target NaN satırlarını düşür ──────────────────────────────────────
     # Hedef değeri olmayan satırlar eğitim için kullanılamaz.
     nan_target = df[target_col].isna()
     if nan_target.any():
