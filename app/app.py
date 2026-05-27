@@ -12,6 +12,15 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+# Python 3.13 + pandas 2.2.x uyumluluk yaması: StringDtype.__init__ imzası değişti.
+# joblib ile kaydedilmiş eski DataFrame'leri yüklemek için gerekli.
+import pandas.core.arrays.string_ as _sd
+_sd_orig = _sd.StringDtype.__init__
+def _sd_patched(self, *args, **kwargs):
+    kwargs.pop("na_value", None)
+    _sd_orig(self, *args[:1], **kwargs)
+_sd.StringDtype.__init__ = _sd_patched
+
 import numpy as np
 import pandas as pd
 import joblib
