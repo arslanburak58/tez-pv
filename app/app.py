@@ -172,14 +172,14 @@ def run_inference(
     # 2. Flags ekle
     x_meta_enriched = enrich_x_meta(x_meta, flags)
 
-    # 3. Meta tahmin
+    # 3. Meta tahmin — clip uygulanmaz; invertör bekleme saatlerinde tahminler
+    # hafif negatif olabilir ve bu fiziksel olarak doğrudur.
     raw = predict_intervals(meta_models, x_meta_enriched)
-    preds = pd.DataFrame({
+    return pd.DataFrame({
         "q_0.1": raw["meta_q01"],
         "q_0.5": raw["meta_q05"],
         "q_0.9": raw["meta_q09"],
     }, index=X.index)
-    return preds.clip(lower=0.0)
 
 
 def compute_metrics(actual: pd.Series, preds: pd.DataFrame) -> dict[str, float]:
@@ -188,13 +188,22 @@ def compute_metrics(actual: pd.Series, preds: pd.DataFrame) -> dict[str, float]:
     q05 = preds["q_0.5"].to_numpy()
     q09 = preds["q_0.9"].to_numpy()
 
-    mae      = float(np.mean(np.abs(y - q05)))
-    rmse     = float(np.sqrt(np.mean((y - q05) ** 2)))
-    pb01     = float(np.mean(np.where(y >= q01, 0.1 * (y - q01), 0.9 * (q01 - y))))
-    pb05     = float(np.mean(np.where(y >= q05, 0.5 * (y - q05), 0.5 * (q05 - y))))
-    pb09     = float(np.mean(np.where(y >= q09, 0.9 * (y - q09), 0.1 * (q09 - y))))
-    pinball  = (pb01 + pb05 + pb09) / 3.0
-    coverage = float(np.mean((y >= q01) & (y <= q09)))
+    mae     = float(np.mean(np.abs(y - q05)))
+    rmse    = float(np.sqrt(np.mean((y - q05) ** 2)))
+    pb01    = float(np.mean(np.where(y >= q01, 0.1 * (y - q01), 0.9 * (q01 - y))))
+    pb05    = float(np.mean(np.where(y >= q05, 0.5 * (y - q05), 0.5 * (q05 - y))))
+    pb09    = float(np.mean(np.where(y >= q09, 0.9 * (y - q09), 0.1 * (q09 - y))))
+    pinball = (pb01 + pb05 + pb09) / 3.0
+
+    # Coverage sadece pozitif üretim saatlerinde (invertör bekleme satırlarını dışla)
+    pos_mask = actual.values > 0
+    if pos_mask.sum() > 0:
+        coverage = float(np.mean(
+            (actual.values[pos_mask] >= q01[pos_mask]) &
+            (actual.values[pos_mask] <= q09[pos_mask])
+        ))
+    else:
+        coverage = 0.0
 
     return {
         "MAE": mae,
@@ -225,6 +234,7 @@ def plot_forecast(
     ax.fill_between(x, q01, q09, alpha=0.22, color="#1E88E5", label="q10–q90 bant")
     ax.plot(x, q05, color="#1E88E5", lw=1.6, label="q50 (medyan)")
     ax.plot(x, y,   color="#E53935", lw=1.3, alpha=0.85, label="Gerçek")
+    ax.axhline(0, color="gray", lw=0.8, ls="--", alpha=0.5)
     ax.set_title(title, fontsize=13, fontweight="bold")
     ax.set_ylabel(ylabel, fontsize=10)
     ax.legend(fontsize=9, loc="upper right")
@@ -301,7 +311,7 @@ def main() -> None:
         c1.metric("MAE",      f"{m['MAE']:.2f} kW")
         c2.metric("RMSE",     f"{m['RMSE']:.2f} kW")
         c3.metric("Pinball",  f"{m['Pinball']:.4f}")
-        c4.metric("Coverage", f"{m['Coverage']:.1%}",
+        c4.metric("Coverage (üretim saatleri)", f"{m['Coverage']:.1%}",
                   delta=f"{m['Coverage']-0.80:+.1%} (hedef %80)")
 
         if failure_active:
@@ -382,7 +392,7 @@ def main() -> None:
         c1.metric("MAE",      f"{m2['MAE']:.4f}" + (" (norm)" if normalize else " kW"))
         c2.metric("RMSE",     f"{m2['RMSE']:.4f}" + (" (norm)" if normalize else " kW"))
         c3.metric("Pinball",  f"{m2['Pinball']:.4f}")
-        c4.metric("Coverage", f"{m2['Coverage']:.1%}",
+        c4.metric("Coverage (üretim saatleri)", f"{m2['Coverage']:.1%}",
                   delta=f"{m2['Coverage']-0.80:+.1%} (hedef %80)")
 
         with st.expander("📌 Yorum / Metodoloji notu"):
