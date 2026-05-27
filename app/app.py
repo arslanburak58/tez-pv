@@ -44,6 +44,7 @@ FLAG_COLS: list[str] = ["is_G_missing", "is_Tamb_missing", "is_RH_missing"]
 ALGOS:     list[str] = ["lgbm", "catboost", "xgboost"]
 QUANTILES: list[float] = [0.1, 0.5, 0.9]
 CQR_K:     float = 2.0
+CQR_K_V7:  float = 1.7  # v7 için kalibre edildi (actual>0 filtreli, ~%81 coverage)
 
 DKASC_LOC: dict = {
     "latitude": -23.762,
@@ -159,6 +160,14 @@ def simulate_failure(
     return X_out, flags
 
 
+def _apply_cqr_v7(preds: pd.DataFrame) -> pd.DataFrame:
+    preds = preds.copy()
+    mid = preds["q_0.5"]
+    preds["q_0.1"] = (mid - CQR_K_V7 * (mid - preds["q_0.1"])).clip(upper=mid)
+    preds["q_0.9"] = (mid + CQR_K_V7 * (preds["q_0.9"] - mid)).clip(lower=mid)
+    return preds
+
+
 def run_inference(
     X: pd.DataFrame,
     flags: pd.DataFrame,
@@ -181,14 +190,14 @@ def run_inference(
     # 2. Flags ekle
     x_meta_enriched = enrich_x_meta(x_meta, flags)
 
-    # 3. Meta tahmin — clip uygulanmaz; invertör bekleme saatlerinde tahminler
-    # hafif negatif olabilir ve bu fiziksel olarak doğrudur.
+    # 3. Meta tahmin
     raw = predict_intervals(meta_models, x_meta_enriched)
-    return pd.DataFrame({
+    preds = pd.DataFrame({
         "q_0.1": raw["meta_q01"],
         "q_0.5": raw["meta_q05"],
         "q_0.9": raw["meta_q09"],
     }, index=X.index)
+    return _apply_cqr_v7(preds)
 
 
 def compute_metrics(actual: pd.Series, preds: pd.DataFrame) -> dict[str, float]:
